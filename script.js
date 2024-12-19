@@ -1,5 +1,3 @@
-// script.js
-
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' }
@@ -20,6 +18,8 @@ let answerDesc = null;
 
 let hostFile = null; // Персонаж хоста
 let guestFile = null; // Персонаж гостя
+let currentRoundHostFile = null; // Персонаж хоста в текущем раунде
+let currentRoundGuestFile = null; // Персонаж гостя в текущем раунде
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -161,7 +161,7 @@ function onDataChannelMessage(event) {
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
         gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+        showGameResult(msg.result, msg.guesserIsHost, msg.currentRoundHostFile, msg.currentRoundGuestFile);
     } else if (msg.type === 'restart') {
         startNewRound();
     }
@@ -187,8 +187,11 @@ function assignCharacters() {
         guestIndex = Math.floor(Math.random() * characters.length);
     }
 
-    hostFile = characters[hostIndex];
-    guestFile = characters[guestIndex];
+    currentRoundHostFile = characters[hostIndex];
+    currentRoundGuestFile = characters[guestIndex];
+
+    hostFile = currentRoundHostFile;
+    guestFile = currentRoundGuestFile;
 
     myCharacterFile = isHost ? hostFile : guestFile;
 
@@ -259,15 +262,15 @@ function endGame(guessedCorrectly) {
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
 
-    const yourCharFile = isHost ? hostFile : guestFile;
-    const oppCharFile = isHost ? guestFile : hostFile;
+    const yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
+    const oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
 
     dataChannel.send(JSON.stringify({
         type: 'guessResult',
         result: result,
         guesserIsHost: guesserIsHost,
-        yourCharacterFile: yourCharFile,
-        opponentCharacterFile: oppCharFile
+        currentRoundHostFile: currentRoundHostFile,
+        currentRoundGuestFile: currentRoundGuestFile
     }));
 
     showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
@@ -335,4 +338,3 @@ function waitForICEGatheringComplete(pc) {
         }
     });
 }
-
