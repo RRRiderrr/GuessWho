@@ -14,15 +14,15 @@ body {
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-#characters, #my-characters, #opponent-characters {
+.board-section {
+    margin-bottom: 20px;
+}
+
+#my-characters, #opponent-characters {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 20px;
-}
-
-.board-section {
-    margin-bottom: 20px;
 }
 
 .char {
