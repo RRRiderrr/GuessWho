@@ -98,8 +98,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('ask-btn').addEventListener('click', () => {
             const question = document.getElementById('question').value.trim();
             if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
-                dataChannel.send(JSON.stringify({ type: 'question', text: question }));
-                document.getElementById('status').textContent = "Вы спросили: " + question;
+                dataChannel.send(JSON.stringify({ type: 'question', text: question, sender: playerName }));
+                document.getElementById('status').textContent = `${playerName} пишет: ${question}`;
             }
         });
 
@@ -119,7 +119,8 @@ async function startHost() {
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    await createOfferWithCompleteICE(localConnection);
+    const offer = await localConnection.createOffer();
+    await localConnection.setLocalDescription(offer);
 
     document.getElementById('host-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
@@ -137,14 +138,11 @@ async function startGuest(remoteOffer) {
         dataChannel.onmessage = onDataChannelMessage;
     };
 
-    offerDesc = JSON.parse(remoteOffer);
-    if (offerDesc.type !== 'offer') {
-        console.error("Некорректный SDP, ожидается offer");
-        return;
-    }
+    const offerDesc = JSON.parse(remoteOffer);
     await remoteConnection.setRemoteDescription(offerDesc);
 
-    await createAnswerWithCompleteICE(remoteConnection);
+    const answer = await remoteConnection.createAnswer();
+    await remoteConnection.setLocalDescription(answer);
 
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
@@ -152,33 +150,37 @@ async function startGuest(remoteOffer) {
 }
 
 function onDataChannelOpen() {
-    console.log('Data channel открыт!');
+    console.log("Data channel открыт!");
     checkIfReady();
 }
 
 function onDataChannelMessage(event) {
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'set') {
-        chosenSet = msg.set;
-        characters = msg.chars;
-    } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
-    } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-    } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
-        endGame(guessedCorrectly);
-    } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+    try {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'set') {
+            chosenSet = msg.set;
+            characters = msg.chars;
+        } else if (msg.type === 'assign') {
+            myCharacterFile = msg.myCharacter;
+            renderGameBoards();
+        } else if (msg.type === 'question') {
+            document.getElementById('status').textContent = `${msg.sender} пишет: ${msg.text}`;
+        } else if (msg.type === 'guess') {
+            const guessedCharacter = msg.characterName;
+            const guessedCorrectly = guessedCharacter === myCharacterFile;
+            endGame(guessedCorrectly);
+        } else if (msg.type === 'guessResult') {
+            showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+        }
+    } catch (error) {
+        console.error("Ошибка при обработке сообщения через DataChannel:", error);
     }
 }
 
 function checkIfReady() {
-    if (isHost) {
-        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+    if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+        if (isHost) {
             assignCharacters();
         }
     }
@@ -208,8 +210,6 @@ function assignCharacters() {
 }
 
 function renderGameBoards() {
-    console.log("Рендеринг досок начат...");
-
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
@@ -312,36 +312,6 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
 }
 
 function startNewRound() {
-    console.log("Начинаем новый раунд...");
     gameOver = false;
-
     assignCharacters();
-}
-
-async function createOfferWithCompleteICE(pc) {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitForICEGatheringComplete(pc);
-}
-
-async function createAnswerWithCompleteICE(pc) {
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitForICEGatheringComplete(pc);
-}
-
-function waitForICEGatheringComplete(pc) {
-    return new Promise(resolve => {
-        if (pc.iceGatheringState === 'complete') {
-            resolve();
-        } else {
-            const checkState = () => {
-                if (pc.iceGatheringState === 'complete') {
-                    pc.removeEventListener('icegatheringstatechange', checkState);
-                    resolve();
-                }
-            };
-            pc.addEventListener('icegatheringstatechange', checkState);
-        }
-    });
 }
