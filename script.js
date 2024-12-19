@@ -132,26 +132,6 @@ async function startGuest(remoteOffer) {
     document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 
     checkIfReady();
-    remoteConnection = new RTCPeerConnection(rtcConfig);
-
-    remoteConnection.ondatachannel = (event) => {
-        dataChannel = event.channel;
-        dataChannel.onopen = onDataChannelOpen;
-        dataChannel.onmessage = onDataChannelMessage;
-    };
-
-    offerDesc = JSON.parse(remoteOffer);
-    if (offerDesc.type !== 'offer') {
-        console.error("Некорректный SDP, ожидается offer");
-        return;
-    }
-    await remoteConnection.setRemoteDescription(offerDesc);
-
-    await createAnswerWithCompleteICE(remoteConnection);
-
-    document.getElementById('join-setup').style.display = 'none';
-    document.getElementById('signal-exchange').style.display = 'block';
-    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 }
 
 function onDataChannelOpen() {
@@ -187,6 +167,10 @@ function checkIfReady() {
     if (isHost) {
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
             assignCharacters();
+        }
+    } else {
+        if (remoteConnection.localDescription && dataChannel && dataChannel.readyState === 'open') {
+            renderGameBoards();
         }
     }
 }
