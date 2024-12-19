@@ -12,13 +12,11 @@ let chosenSet = null;
 let characters = [];
 let isHost = false; 
 let myCharacter = null;        // Секретный персонаж текущего игрока
-let opponentCharacter = null;  // Секретный персонаж оппонента (узнаем из guessResult)
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-// Секреты хост хранит для обеих сторон
 let hostSecret = null;
 let guestSecret = null;
 
@@ -89,6 +87,11 @@ document.addEventListener('DOMContentLoaded', async () => {
                 document.getElementById('status').textContent = "Вы спросили: " + question;
             }
         });
+
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            location.reload();
+        });
+
     } catch (e) {
         console.error("Ошибка при загрузке packs.json:", e);
     }
@@ -141,27 +144,25 @@ function onDataChannelOpen() {
 function onDataChannelMessage(event) {
     const msg = JSON.parse(event.data);
     if (msg.type === 'set') {
-        // Гость получает набор
         chosenSet = msg.set;
         characters = msg.chars;
     } else if (msg.type === 'assign') {
-        // Гость получает своего скрытого персонажа
         myCharacter = msg.myCharacter;
-        // У гостя есть только myCharacter
         renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
     } else if (msg.type === 'guess') {
-        // Проверить угадан ли персонаж
-        if (msg.characterName === myCharacter) {
-            endGame(true, msg.characterName);
-        } else {
-            endGame(false, msg.characterName);
-        }
+        // Получил guess - я defender
+        const guessedCharacter = msg.characterName;
+        // Если guessedCharacter === myCharacter -> guesser выиграл
+        // Иначе defender выиграл
+        const guessedCorrectly = (guessedCharacter === myCharacter);
+        endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
-        // Показать результаты
         gameOver = true;
-        showGameResult(msg.result, msg.yourCharacter, msg.myCharacter);
+        // msg.result: 'guesser' или 'defender'
+        // msg.guesserIsHost: true/false
+        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacter, msg.myCharacter);
     }
 }
 
@@ -176,7 +177,6 @@ function checkIfReady() {
 }
 
 function assignCharacters() {
-    // Хост выбирает случайно персонажа для себя и для гостя
     const hostIndex = Math.floor(Math.random() * characters.length);
     const guestIndex = Math.floor(Math.random() * characters.length);
     
@@ -185,7 +185,6 @@ function assignCharacters() {
     
     myCharacter = hostSecret; // хосту свой персонаж
 
-    // Отправить гостю
     dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
     dataChannel.send(JSON.stringify({type:'assign', myCharacter: guestSecret}));
 
@@ -197,35 +196,18 @@ function renderGameBoards() {
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
 
-    // Мой персонаж (только один)
+    // Мой персонаж
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-    const myCharDiv = document.createElement('div');
-    myCharDiv.className = 'char';
-    const myCharImg = document.createElement('img');
-    const myCharFile = characters.find(c => c.replace(/\..+$/, '') === myCharacter);
-    myCharImg.src = `packs/${chosenSet}/${myCharFile}`;
-    const myCharP = document.createElement('p');
-    myCharP.textContent = myCharacter;
-    myCharDiv.appendChild(myCharImg);
-    myCharDiv.appendChild(myCharP);
-    myContainer.appendChild(myCharDiv);
+    myContainer.appendChild(createCharCard(myCharacter));
 
     // Персонажи оппонента (все)
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
         const name = c.replace(/\..+$/, '');
-        const div = document.createElement('div');
-        div.className = 'char';
-        const img = document.createElement('img');
-        img.src = `packs/${chosenSet}/${c}`;
-        const p = document.createElement('p');
-        p.textContent = name;
-        div.appendChild(img);
-        div.appendChild(p);
-
-        // Кнопка "Выбрать персонажа"
+        const div = createCharCard(name);
+        // Добавим кнопку
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
@@ -246,61 +228,92 @@ function renderGameBoards() {
     });
 }
 
+function createCharCard(charName) {
+    const div = document.createElement('div');
+    div.className = 'char';
+    const img = document.createElement('img');
+    const cFile = characters.find(c => c.replace(/\..+$/, '') === charName);
+    img.src = `packs/${chosenSet}/${cFile}`;
+    const p = document.createElement('p');
+    p.textContent = charName;
+    div.appendChild(img);
+    div.appendChild(p);
+    return div;
+}
+
 function makeGuess(characterName) {
     if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
         dataChannel.send(JSON.stringify({type:'guess', characterName: characterName}));
     }
 }
 
-function endGame(guessedCorrectly, guessedCharacter) {
+function endGame(guessedCorrectly) {
     gameOver = true;
-    const result = guessedCorrectly ? 'correct' : 'wrong';
+    // Я - defender (кто получил guess)
+    // guessedCorrectly = true => guesser выигрывает
+    // guessedCorrectly = false => defender выигрывает
+    const result = guessedCorrectly ? 'guesser' : 'defender';
 
-    // У хоста есть оба персонажа
-    // У гостя только свой. Чтобы все знали оба персонажа:
-    // При guessResult передадим yourCharacter (мой) и myCharacter (угадываемый)
-    // Для хоста: yourCharacter = myCharacter (у кого сейчас endGame вызывается), myCharacter = тот, кого назвали.
-    // У хоста: yourCharacter = hostSecret, myCharacter = guestSecret, если гость угадывал.
-    // Но мы должны отразить итог одинаково.
-    // Логика: 
-    // - Если хост отвечает на guess (значит гость угадывал):
-    //   yourCharacter = hostSecret (хостовский персонаж)
-    //   myCharacter = guestSecret (гостевской персонаж)
-    // - Если гость отвечает на guess (значит хост угадывал):
-    //   yourCharacter = guestSecret (гостевской)
-    //   myCharacter = hostSecret (хостовской)
-    // Узнаем по роли:
-    let yourChar, oppChar;
-    if (isHost) {
-        yourChar = hostSecret;
-        oppChar = guestSecret;
-    } else {
-        yourChar = guestSecret;
-        oppChar = hostSecret;
-    }
+    // guesserIsHost = !isHost (если я defender, значит guesser - противоположная роль)
+    const guesserIsHost = !isHost;
+
+    // yourCharacter = мой персонаж, myCharacter = персонаж оппонента
+    // Если я host, yourCharacter = hostSecret, oppCharacter = guestSecret
+    // Если я guest, yourCharacter = guestSecret, oppCharacter = hostSecret
+    const yourChar = isHost ? hostSecret : guestSecret;
+    const oppChar = isHost ? guestSecret : hostSecret;
 
     const guessResultMsg = {
         type: 'guessResult',
         result: result,
+        guesserIsHost: guesserIsHost,
         yourCharacter: yourChar,
         myCharacter: oppChar
     };
 
-    // Отправляем оппоненту
     dataChannel.send(JSON.stringify(guessResultMsg));
-    // Отображаем результат у себя
-    showGameResult(result, yourChar, oppChar);
+    showGameResult(result, guesserIsHost, yourChar, oppChar);
 }
 
-function showGameResult(result, yourChar, oppChar) {
+function showGameResult(result, guesserIsHost, yourChar, oppChar) {
     gameOver = true;
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
-    const msg = result === 'correct' ? 'Вы угадали персонажа оппонента!' : 'Вы не угадали! Оппонент выиграл.';
+    // Определяем сообщение в зависимости от того, кто выиграл.
+    // result = 'guesser' (угадавший выиграл), 'defender' (защищающийся выиграл)
+    // Если guesserIsHost === isHost => я guesser
+    const iAmGuesser = (guesserIsHost === isHost);
+
+    let msg;
+    if (result === 'guesser') {
+        // guesser выиграл
+        if (iAmGuesser) {
+            msg = "Вы угадали персонажа оппонента!";
+        } else {
+            msg = "Оппонент выиграл и угадал персонажа до вас!";
+        }
+    } else {
+        // defender выиграл
+        if (!iAmGuesser) {
+            // Я defender
+            msg = "Вы угадали персонажа оппонента!";
+        } else {
+            // Я guesser
+            msg = "Оппонент выиграл и угадал персонажа до вас!";
+        }
+    }
+
     document.getElementById('result-message').textContent = msg;
-    document.getElementById('your-character').textContent = yourChar;
-    document.getElementById('opponent-character').textContent = oppChar;
+
+    // Показать оба персонажа
+    const finalYourChar = document.getElementById('final-your-char');
+    finalYourChar.innerHTML = '';
+    finalYourChar.appendChild(createCharCard(yourChar));
+
+    const finalOppChar = document.getElementById('final-opp-char');
+    finalOppChar.innerHTML = '';
+    finalOppChar.appendChild(createCharCard(oppChar));
 }
 
 async function createOfferWithCompleteICE(pc) {
