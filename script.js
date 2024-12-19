@@ -184,7 +184,7 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'restart') {
         startNewRound();
     }
-}
+
 
 function checkIfReady() {
     if (isHost) {
