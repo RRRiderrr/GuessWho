@@ -151,7 +151,7 @@ function onDataChannelMessage(event) {
         myCharacterFile = msg.myCharacter;
         renderGameBoards();
     } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
+        document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
     } else if (msg.type === 'guess') {
         const guessedCharacter = msg.characterName;
         const guessedCorrectly = (guessedCharacter === myCharacterFile);
@@ -182,7 +182,7 @@ function assignCharacters() {
         return;
     }
 
-    let hostIndex = Math.floor(Math.random() * characters.length);
+    const hostIndex = Math.floor(Math.random() * characters.length);
     let guestIndex = Math.floor(Math.random() * characters.length);
     while (guestIndex === hostIndex) {
         guestIndex = Math.floor(Math.random() * characters.length);
