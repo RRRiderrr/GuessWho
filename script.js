@@ -1,14 +1,19 @@
-// Глобальные переменные для WebRTC
+// Конфигурация для RTCPeerConnection c STUN-сервером
+const rtcConfig = {
+    iceServers: [
+        { urls: 'stun:stun.l.google.com:19302' }
+    ]
+};
+
 let localConnection;
 let remoteConnection;
 let dataChannel;
 let chosenSet = null;
 let characters = [];
-let isHost = false; // true, если текущий игрок - хост
+let isHost = false; 
 let offerDesc = null;
 let answerDesc = null;
 
-// При загрузке страницы получаем списки наборов
 document.addEventListener('DOMContentLoaded', async () => {
     try {
         const response = await fetch('packs.json');
@@ -39,8 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             const select = document.getElementById('set-select');
             chosenSet = select.value;
             characters = JSON.parse(select.selectedOptions[0].dataset.chars);
-
-            // Инициализация WebRTC для хоста
             await startHost();
         });
 
@@ -57,7 +60,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('apply-answer').addEventListener('click', async () => {
-            // Хост вставляет answer от гостя
             const ans = document.getElementById('remote-answer').value;
             if (!ans) return;
             answerDesc = JSON.parse(ans);
@@ -78,32 +80,29 @@ document.addEventListener('DOMContentLoaded', async () => {
 });
 
 async function startHost() {
-    localConnection = new RTCPeerConnection();
+    localConnection = new RTCPeerConnection(rtcConfig);
 
-    // Создаём dataChannel для обмена сообщениями (инициатор - хост)
     dataChannel = localConnection.createDataChannel("gameChannel");
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    // Генерируем offer
     const offer = await localConnection.createOffer();
     await localConnection.setLocalDescription(offer);
 
-    // Показать пользователю offer для передачи
     document.getElementById('host-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
 
-    // Добавляем блок для приема answer
+    // Показываем блок для вставки answer
     document.getElementById('host-accept-answer').style.display = 'block';
 
     localConnection.onicecandidate = (e) => {
-        // Ждем, пока все кандидаты будут собраны, в данном примере — без trickle ICE
+        // ждем финала сборки кандидатов
     };
 }
 
 async function startGuest(remoteOffer) {
-    remoteConnection = new RTCPeerConnection();
+    remoteConnection = new RTCPeerConnection(rtcConfig);
 
     remoteConnection.ondatachannel = (event) => {
         dataChannel = event.channel;
@@ -116,31 +115,28 @@ async function startGuest(remoteOffer) {
     const answer = await remoteConnection.createAnswer();
     await remoteConnection.setLocalDescription(answer);
 
-    // Показать answer для передачи хосту
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 
     remoteConnection.onicecandidate = (e) => {
-        // Аналогично, ждем финала
+        // ждем финала сборки кандидатов
     };
 }
 
 function onDataChannelOpen() {
-    console.log('Data channel открыто!');
+    console.log('Data channel открыт!');
     checkIfReady();
 }
 
 function checkIfReady() {
-    // Если мы хост, проверяем установлено ли remoteDescription (answerDesc) и открыт ли канал
-    // Если гость, канал открывается автоматически после установки offer/answer
+    // Для хоста: проверить что у него установлен answer и канал открыт
     if (isHost && localConnection && localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-        // Готово! Отправляем набор данных
+        // Отправляем информацию о наборе
         dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
         transitionToGame();
     } else if (!isHost && dataChannel && dataChannel.readyState === 'open') {
-        // На стороне гостя просто ждем, когда придет информация о наборе
-        // Переход в игру будет после получения типа 'set'
+        // Гость ждёт набор от хоста. Когда получит, перейдет к игре.
     }
 }
 
@@ -153,7 +149,7 @@ function onDataChannelMessage(event) {
         renderCharacters();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-        // Здесь можно добавить логику ответа (да/нет) и т.д.
+        // Можно добавить логику ответа
     }
 }
 
@@ -161,7 +157,7 @@ function renderCharacters() {
     const board = document.getElementById('characters');
     board.innerHTML = '';
     characters.forEach(c => {
-        const name = c.replace(/\..+$/, ''); // убираем расширение для имени
+        const name = c.replace(/\..+$/, '');
         const div = document.createElement('div');
         div.className = 'char';
         const img = document.createElement('img');
@@ -175,7 +171,6 @@ function renderCharacters() {
 }
 
 function transitionToGame() {
-    // Скрыть сигнализацию, показать игру
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
