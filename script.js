@@ -260,8 +260,8 @@ function makeGuess(characterFile) {
 }
 
 function endGame(guessedCorrectly) {
-    currentRoundHostFile = isHost ? myCharacterFile : hostFile;
-    currentRoundGuestFile = isHost ? guestFile : myCharacterFile;
+    currentRoundHostFile = hostFile;
+    currentRoundGuestFile = guestFile;
     currentRoundHostFile = hostFile;
     currentRoundGuestFile = guestFile;
     gameOver = true;
@@ -283,8 +283,8 @@ function endGame(guessedCorrectly) {
 }
 
 function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
-    yourCharFile = currentRoundHostFile;
-    oppCharFile = currentRoundGuestFile;
+    yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
+    oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
     yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
     oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
     document.getElementById('game-board').style.display = 'none';
