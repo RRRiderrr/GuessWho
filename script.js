@@ -141,26 +141,40 @@ function onDataChannelOpen() {
 
 function onDataChannelMessage(event) {
     const msg = JSON.parse(event.data);
-    if (msg.type === 'set') {
-        chosenSet = msg.set;
-        characters = msg.chars;
-        currentRoundHostFile = msg.hostFile;
-        currentRoundGuestFile = msg.guestFile;
-        renderGameBoards();
-    } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
-    } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
-    } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
-        endGame(guessedCorrectly);
-    } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.currentRoundHostFile, msg.currentRoundGuestFile);
-    } else if (msg.type === 'restart') {
-        startNewRound();
+    switch (msg.type) {
+        case 'set':
+            chosenSet = msg.set;
+            characters = msg.chars;
+            currentRoundHostFile = msg.hostFile;
+            currentRoundGuestFile = msg.guestFile;
+            renderGameBoards();
+            break;
+        case 'assign':
+            myCharacterFile = msg.myCharacter;
+            renderGameBoards();
+            break;
+        case 'question':
+            document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
+            break;
+        case 'guess':
+            const guessedCharacter = msg.characterName;
+            const guessedCorrectly = guessedCharacter === myCharacterFile;
+            endGame(guessedCorrectly);
+            break;
+        case 'guessResult':
+            gameOver = true;
+            showGameResult(
+                msg.result,
+                msg.guesserIsHost,
+                msg.currentRoundHostFile,
+                msg.currentRoundGuestFile
+            );
+            break;
+        case 'restart':
+            startNewRound();
+            break;
+        default:
+            console.warn('Неизвестный тип сообщения:', msg.type);
     }
 }
 
@@ -182,7 +196,7 @@ function assignCharacters() {
         return;
     }
 
-    const hostIndex = Math.floor(Math.random() * characters.length);
+    let hostIndex = Math.floor(Math.random() * characters.length);
     let guestIndex = Math.floor(Math.random() * characters.length);
     while (guestIndex === hostIndex) {
         guestIndex = Math.floor(Math.random() * characters.length);
@@ -284,7 +298,7 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
-    const iAmGuesser = (guesserIsHost === isHost);
+    const iAmGuesser = guesserIsHost === isHost;
 
     let msg;
     if (result === 'guesser') {
