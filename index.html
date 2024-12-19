@@ -1,39 +1,83 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="ru">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>WebRTC Test</title>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Угадай кто?</title>
+    <link rel="stylesheet" href="style.css"/>
 </head>
 <body>
-    <h1>WebRTC Data Channel Test</h1>
+<div class="container">
+    <h1>Угадай кто?</h1>
 
-    <div>
-        <h2>Хост</h2>
-        <button id="host-btn">Создать Offer</button>
-        <pre id="host-offer"></pre>
-        <textarea id="host-answer" placeholder="Вставьте Answer"></textarea>
-        <button id="host-accept-btn">Принять Answer</button>
+    <div id="setup-screen">
+        <h2>Выберите свою роль:</h2>
+        <button id="host-btn">Я хост (создать игру)</button>
+        <button id="join-btn">Я участник (подключиться к игре)</button>
     </div>
 
-    <div>
-        <h2>Гость</h2>
-        <textarea id="guest-offer" placeholder="Вставьте Offer"></textarea>
-        <button id="guest-btn">Создать Answer</button>
-        <pre id="guest-answer"></pre>
+    <div id="host-setup" style="display:none;">
+        <h2>Выберите набор персонажей:</h2>
+        <select id="set-select"></select>
+        <button id="host-start">Начать игру как хост</button>
     </div>
 
-    <div>
-        <h2>Сообщения</h2>
-        <input id="message-input" type="text" placeholder="Введите сообщение">
-        <button id="send-msg-btn">Отправить</button>
+    <div id="join-setup" style="display:none;">
+        <h2>Вставьте offer от хоста:</h2>
+        <textarea id="remote-offer" rows="10" cols="50"></textarea>
+        <button id="join-start">Подключиться</button>
     </div>
 
-    <div>
-        <h3>Статус:</h3>
-        <p id="status"></p>
+    <div id="signal-exchange" style="display:none;">
+        <h2>Скопируйте и передайте это (offer или answer) другому игроку:</h2>
+        <textarea id="local-desc" rows="10" cols="50"></textarea>
+        <button id="copy-desc">Копировать</button>
     </div>
 
-    <script src="script.js"></script>
+    <div id="host-accept-answer" style="display:none;">
+        <h3>Вставьте answer от гостя:</h3>
+        <textarea id="remote-answer" rows="10" cols="50"></textarea><br>
+        <button id="apply-answer">Применить answer</button>
+    </div>
+
+    <div id="game-board" style="display:none;">
+        <h2>Игра</h2>
+        <div class="boards">
+            <div class="board-section">
+                <h3>Мой персонаж</h3>
+                <div id="my-character-container"></div>
+            </div>
+            <div class="board-section">
+                <h3>Персонажи оппонента</h3>
+                <div id="opponent-characters"></div>
+            </div>
+        </div>
+        <div id="controls">
+            <input type="text" id="question" placeholder="Задайте вопрос (да/нет)"/>
+            <button id="ask-btn">Спросить</button>
+            <p id="status"></p>
+        </div>
+    </div>
+
+    <div id="game-result" style="display:none;">
+        <h2>Результат</h2>
+        <p id="result-message"></p>
+
+        <div class="boards">
+            <div class="board-section">
+                <h3>Ваш персонаж</h3>
+                <div id="final-your-char"></div>
+            </div>
+            <div class="board-section">
+                <h3>Персонаж оппонента</h3>
+                <div id="final-opp-char"></div>
+            </div>
+        </div>
+
+        <button id="restart-btn">Начать заново</button>
+    </div>
+</div>
+
+<script src="script.js"></script>
 </body>
 </html>
