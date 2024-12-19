@@ -10,28 +10,17 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false;
-let myCharacterFile = null;
+let myCharacterFile = null; // Персонаж текущего игрока
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-let hostFile = null;
-let guestFile = null;
-
-function showScreen(screenId) {
-    const screens = document.querySelectorAll('.container');
-    screens.forEach(screen => screen.style.display = 'none');
-    const targetScreen = document.getElementById(screenId);
-    if (targetScreen) {
-        targetScreen.style.display = 'block';
-    }
-}
+let hostFile = null; // Персонаж хоста
+let guestFile = null; // Персонаж гостя
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        showScreen('setup-screen');
-
         const response = await fetch('packs.json');
         const data = await response.json();
 
@@ -45,12 +34,14 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('host-btn').addEventListener('click', () => {
-            showScreen('host-setup');
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('host-setup').style.display = 'block';
             isHost = true;
         });
 
         document.getElementById('join-btn').addEventListener('click', () => {
-            showScreen('join-setup');
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('join-setup').style.display = 'block';
             isHost = false;
         });
 
@@ -59,33 +50,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             chosenSet = select.value;
             characters = JSON.parse(select.selectedOptions[0].dataset.chars);
             await startHost();
-            showScreen('signal-exchange');
         });
 
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
             if (!remoteOffer) return;
             await startGuest(remoteOffer);
-            showScreen('signal-exchange');
+        });
+
+        document.getElementById('copy-desc').addEventListener('click', () => {
+            const desc = document.getElementById('local-desc');
+            desc.select();
+            document.execCommand('copy');
         });
 
         document.getElementById('apply-answer').addEventListener('click', async () => {
-            const answerText = document.getElementById('remote-answer').value;
-            if (!answerText) return;
-
+            const ans = document.getElementById('remote-answer').value;
+            if (!ans) return;
             try {
-                const answerDesc = JSON.parse(answerText);
+                answerDesc = JSON.parse(ans);
+                if (answerDesc.type !== 'answer') {
+                    throw new Error("Неверный тип SDP, ожидается answer");
+                }
                 await localConnection.setRemoteDescription(answerDesc);
                 checkIfReady();
-                showScreen('game-board');
-            } catch (error) {
-                console.error("Ошибка при обработке answer:", error);
+            } catch (e) {
+                console.error("Ошибка при применении answer:", e);
+            }
+        });
+
+        document.getElementById('ask-btn').addEventListener('click', () => {
+            const question = document.getElementById('question').value.trim();
+            if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
+                dataChannel.send(JSON.stringify({ type: 'question', text: question }));
+                document.getElementById('status').textContent = "Вы спросили: " + question;
             }
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            gameOver = false;
-            showScreen('setup-screen');
+            startNewRound();
         });
 
     } catch (e) {
@@ -100,65 +103,66 @@ async function startHost() {
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    const offer = await localConnection.createOffer();
-    await localConnection.setLocalDescription(offer);
+    await createOfferWithCompleteICE(localConnection);
 
+    document.getElementById('host-setup').style.display = 'none';
+    document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
+
+    document.getElementById('host-accept-answer').style.display = 'block';
 }
 
 async function startGuest(remoteOffer) {
-    try {
-        remoteConnection = new RTCPeerConnection(rtcConfig);
+    remoteConnection = new RTCPeerConnection(rtcConfig);
 
-        remoteConnection.ondatachannel = (event) => {
-            dataChannel = event.channel;
-            dataChannel.onopen = onDataChannelOpen;
-            dataChannel.onmessage = onDataChannelMessage;
-        };
+    remoteConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        dataChannel.onopen = onDataChannelOpen;
+        dataChannel.onmessage = onDataChannelMessage;
+    };
 
-        await remoteConnection.setRemoteDescription(remoteOffer);
-
-        const answer = await remoteConnection.createAnswer();
-        await remoteConnection.setLocalDescription(answer);
-
-        document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
-    } catch (error) {
-        console.error("Ошибка при обработке remoteOffer:", error);
+    offerDesc = JSON.parse(remoteOffer);
+    if (offerDesc.type !== 'offer') {
+        console.error("Некорректный SDP, ожидается offer");
+        return;
     }
+    await remoteConnection.setRemoteDescription(offerDesc);
+
+    await createAnswerWithCompleteICE(remoteConnection);
+
+    document.getElementById('join-setup').style.display = 'none';
+    document.getElementById('signal-exchange').style.display = 'block';
+    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 }
 
 function onDataChannelOpen() {
-    console.log("Data channel открыт!");
+    console.log('Data channel открыт!');
     checkIfReady();
 }
 
 function onDataChannelMessage(event) {
-    try {
-        const msg = JSON.parse(event.data);
-
-        if (msg.type === 'set') {
-            chosenSet = msg.set;
-            characters = msg.chars;
-        } else if (msg.type === 'assign') {
-            myCharacterFile = msg.myCharacter;
-            renderGameBoards();
-        } else if (msg.type === 'question') {
-            document.getElementById('status').textContent = `${msg.sender} пишет: ${msg.text}`;
-        } else if (msg.type === 'guess') {
-            const guessedCharacter = msg.characterName;
-            const guessedCorrectly = guessedCharacter === myCharacterFile;
-            endGame(guessedCorrectly);
-        } else if (msg.type === 'guessResult') {
-            showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
-        }
-    } catch (error) {
-        console.error("Ошибка при обработке сообщения через DataChannel:", error);
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'set') {
+        chosenSet = msg.set;
+        characters = msg.chars;
+    } else if (msg.type === 'assign') {
+        myCharacterFile = msg.myCharacter;
+        renderGameBoards();
+    } else if (msg.type === 'question') {
+        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
+    } else if (msg.type === 'guess') {
+        const guessedCharacter = msg.characterName;
+        const guessedCorrectly = (guessedCharacter === myCharacterFile);
+        endGame(guessedCorrectly);
+    } else if (msg.type === 'guessResult') {
+        gameOver = true;
+        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
     }
 }
 
 function checkIfReady() {
-    if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-        if (isHost) {
+    if (isHost) {
+        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
             assignCharacters();
         }
     }
@@ -188,6 +192,10 @@ function assignCharacters() {
 }
 
 function renderGameBoards() {
+    console.log("Рендеринг досок начат...");
+
+    document.getElementById('signal-exchange').style.display = 'none';
+    document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
     document.getElementById('game-result').style.display = 'none';
 
@@ -226,9 +234,8 @@ function createCharCard(fileName) {
     div.className = 'char';
     const img = document.createElement('img');
     img.src = `packs/${chosenSet}/${fileName}`;
-    img.alt = fileName;
     const p = document.createElement('p');
-    p.textContent = fileName.replace(/\\..+$/, '');
+    p.textContent = fileName.replace(/\..+$/, '');
     div.appendChild(img);
     div.appendChild(p);
     return div;
@@ -285,4 +292,39 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
     finalOppChar.appendChild(createCharCard(oppCharFile));
+}
+
+function startNewRound() {
+    console.log("Начинаем новый раунд...");
+    gameOver = false;
+
+    assignCharacters();
+}
+
+async function createOfferWithCompleteICE(pc) {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForICEGatheringComplete(pc);
+}
+
+async function createAnswerWithCompleteICE(pc) {
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitForICEGatheringComplete(pc);
+}
+
+function waitForICEGatheringComplete(pc) {
+    return new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') {
+            resolve();
+        } else {
+            const checkState = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', checkState);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', checkState);
+        }
+    });
 }
