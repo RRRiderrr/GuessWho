@@ -9,12 +9,9 @@ let remoteConnection;
 let dataChannel;
 let chosenSet = null;
 let characters = [];
-let isHost = false; 
-let myCharacterFile = null; // файл персонажа текущего игрока
+let isHost = false;
+let myCharacterFile = null;
 let gameOver = false;
-
-let offerDesc = null;
-let answerDesc = null;
 
 let hostFile = null;
 let guestFile = null;
@@ -68,11 +65,8 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ans = document.getElementById('remote-answer').value;
             if (!ans) return;
             try {
-                answerDesc = JSON.parse(ans);
-                if (answerDesc.type !== 'answer') {
-                    throw new Error("Неверный тип SDP, ожидается answer");
-                }
-                await localConnection.setRemoteDescription(answerDesc);
+                const parsedAnswer = JSON.parse(ans);
+                await localConnection.setRemoteDescription(parsedAnswer);
                 checkIfReady();
             } catch (e) {
                 console.error("Ошибка при применении answer:", e);
@@ -82,7 +76,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('ask-btn').addEventListener('click', () => {
             const question = document.getElementById('question').value.trim();
             if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
-                dataChannel.send(JSON.stringify({type:'question', text:question}));
+                dataChannel.send(JSON.stringify({ type: 'question', text: question }));
                 document.getElementById('status').textContent = "Вы спросили: " + question;
             }
         });
@@ -121,12 +115,8 @@ async function startGuest(remoteOffer) {
         dataChannel.onmessage = onDataChannelMessage;
     };
 
-    offerDesc = JSON.parse(remoteOffer);
-    if (offerDesc.type !== 'offer') {
-        console.error("Некорректный SDP, ожидается offer");
-        return;
-    }
-    await remoteConnection.setRemoteDescription(offerDesc);
+    const parsedOffer = JSON.parse(remoteOffer);
+    await remoteConnection.setRemoteDescription(parsedOffer);
 
     await createAnswerWithCompleteICE(remoteConnection);
 
@@ -147,37 +137,28 @@ function onDataChannelMessage(event) {
         characters = msg.chars;
     } else if (msg.type === 'assign') {
         myCharacterFile = msg.myCharacter;
-        console.log("Получил assign, мой персонаж:", myCharacterFile);
         renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
     } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
+        const guessedCorrectly = (msg.character === myCharacterFile);
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+        showGameResult(msg.result, msg.yourCharacter, msg.opponentCharacter);
     }
 }
 
 function checkIfReady() {
-    if (isHost) {
-        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-            assignCharacters();
-        }
+    if (isHost && localConnection.remoteDescription && dataChannel.readyState === 'open') {
+        assignCharacters();
     }
 }
 
 function assignCharacters() {
-    if (characters.length < 2) {
-        console.error("В наборе слишком мало персонажей!");
-        return;
-    }
-
     let hostIndex = Math.floor(Math.random() * characters.length);
     let guestIndex = Math.floor(Math.random() * characters.length);
-    while (guestIndex === hostIndex) {
+
+    while (hostIndex === guestIndex) {
         guestIndex = Math.floor(Math.random() * characters.length);
     }
 
@@ -186,151 +167,73 @@ function assignCharacters() {
 
     myCharacterFile = isHost ? hostFile : guestFile;
 
-    console.log(`Назначены персонажи: хост=${hostFile}, гость=${guestFile}, я=${myCharacterFile}`);
-
-    dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
-    dataChannel.send(JSON.stringify({type:'assign', myCharacter: (isHost ? guestFile : hostFile)}));
+    dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters }));
+    dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: isHost ? guestFile : hostFile }));
 
     renderGameBoards();
 }
 
 function renderGameBoards() {
-    document.getElementById('signal-exchange').style.display = 'none';
-    document.getElementById('host-accept-answer').style.display = 'none';
-    document.getElementById('game-board').style.display = 'block';
-    document.getElementById('game-result').style.display = 'none';
-
-    // Мой персонаж
     const myContainer = document.getElementById('my-character-container');
-    myContainer.innerHTML = '';
-    myContainer.appendChild(createCharCard(myCharacterFile));
-
-    // Персонажи оппонента
     const oppBoard = document.getElementById('opponent-characters');
+
+    myContainer.innerHTML = '';
     oppBoard.innerHTML = '';
-    characters.forEach(c => {
-        const div = createCharCard(c);
+
+    myContainer.appendChild(createCharCard(myCharacterFile));
+    characters.forEach(char => {
+        const charCard = createCharCard(char);
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
-        guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (gameOver) return;
-            makeGuess(c);
-        });
-        div.appendChild(guessBtn);
-
-        div.addEventListener('click', () => {
-            if (gameOver) return;
-            div.classList.toggle('hidden');
-        });
-
-        oppBoard.appendChild(div);
+        guessBtn.onclick = () => makeGuess(char);
+        charCard.appendChild(guessBtn);
+        oppBoard.appendChild(charCard);
     });
 }
 
-function createCharCard(fileName) {
+function createCharCard(char) {
     const div = document.createElement('div');
     div.className = 'char';
     const img = document.createElement('img');
-    img.src = `packs/${chosenSet}/${fileName}`;
-    const p = document.createElement('p');
-    p.textContent = fileName.replace(/\..+$/, '');
+    img.src = `packs/${chosenSet}/${char}`;
     div.appendChild(img);
-    div.appendChild(p);
     return div;
 }
 
-function makeGuess(characterFile) {
-    if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({type:'guess', characterName: characterFile}));
+function makeGuess(character) {
+    if (!gameOver) {
+        dataChannel.send(JSON.stringify({ type: 'guess', character }));
     }
 }
 
 function endGame(guessedCorrectly) {
-    gameOver = true;
-    const result = guessedCorrectly ? 'guesser' : 'defender';
-    const guesserIsHost = !isHost;
+    const result = guessedCorrectly ? "win" : "lose";
+    const yourCharacter = myCharacterFile;
+    const opponentCharacter = isHost ? guestFile : hostFile;
 
-    const yourCharFile = isHost ? hostFile : guestFile;
-    const oppCharFile = isHost ? guestFile : hostFile;
+    dataChannel.send(JSON.stringify({ type: 'guessResult', result, yourCharacter, opponentCharacter }));
 
-    console.log("Игра окончена:", {result, guesserIsHost, yourCharFile, oppCharFile});
-
-    dataChannel.send(JSON.stringify({
-        type: 'guessResult',
-        result: result,
-        guesserIsHost: guesserIsHost,
-        yourCharacterFile: yourCharFile,
-        opponentCharacterFile: oppCharFile
-    }));
-
-    showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
+    showGameResult(result, yourCharacter, opponentCharacter);
 }
 
-function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
-    gameOver = true;
+function showGameResult(result, yourCharacter, opponentCharacter) {
+    const resultMessage = document.getElementById('result-message');
+    const yourCharContainer = document.getElementById('final-your-char');
+    const oppCharContainer = document.getElementById('final-opp-char');
+
+    resultMessage.textContent = result === "win" ? "Вы угадали персонажа!" : "Вы проиграли.";
+    yourCharContainer.innerHTML = '';
+    oppCharContainer.innerHTML = '';
+
+    yourCharContainer.appendChild(createCharCard(yourCharacter));
+    oppCharContainer.appendChild(createCharCard(opponentCharacter));
+
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
-
-    const iAmGuesser = (guesserIsHost === isHost);
-
-    let msg;
-    if (result === 'guesser') {
-        if (iAmGuesser) {
-            msg = "Вы угадали персонажа оппонента!";
-        } else {
-            msg = "Оппонент угадал вашего персонажа! Вы проиграли.";
-        }
-    } else {
-        if (iAmGuesser) {
-            msg = "Вы не угадали персонажа оппонента! Вы проиграли.";
-        } else {
-            msg = "Оппонент не угадал вашего персонажа! Вы выиграли.";
-        }
-    }
-
-    document.getElementById('result-message').textContent = msg;
-
-    const finalYourChar = document.getElementById('final-your-char');
-    finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(yourCharFile));
-
-    const finalOppChar = document.getElementById('final-opp-char');
-    finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(oppCharFile));
 }
 
 function startNewRound() {
-    console.log("Начинаем новый раунд");
     gameOver = false;
     assignCharacters();
-}
-
-async function createOfferWithCompleteICE(pc) {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitForICEGatheringComplete(pc);
-}
-
-async function createAnswerWithCompleteICE(pc) {
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitForICEGatheringComplete(pc);
-}
-
-function waitForICEGatheringComplete(pc) {
-    return new Promise(resolve => {
-        if (pc.iceGatheringState === 'complete') {
-            resolve();
-        } else {
-            const checkState = () => {
-                if (pc.iceGatheringState === 'complete') {
-                    pc.removeEventListener('icegatheringstatechange', checkState);
-                    resolve();
-                }
-            };
-            pc.addEventListener('icegatheringstatechange', checkState);
-        }
-    });
+    renderGameBoards();
 }
