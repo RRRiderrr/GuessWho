@@ -237,3 +237,31 @@ function startNewRound() {
     assignCharacters();
     renderGameBoards();
 }
+
+async function createOfferWithCompleteICE(pc) {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForICEGatheringComplete(pc);
+}
+
+async function createAnswerWithCompleteICE(pc) {
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitForICEGatheringComplete(pc);
+}
+
+function waitForICEGatheringComplete(pc) {
+    return new Promise((resolve) => {
+        if (pc.iceGatheringState === 'complete') {
+            resolve();
+        } else {
+            const checkState = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', checkState);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', checkState);
+        }
+    });
+}
