@@ -10,7 +10,7 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false; 
-let myCharacter = null;
+let myCharacter = null; // Персонаж текущего игрока
 let gameOver = false;
 
 let offerDesc = null;
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            // Рематч без разрыва соединения и без перезагрузки
+            // Запустить новый раунд без переподключения
             startNewRound();
         });
 
@@ -157,7 +157,7 @@ function onDataChannelMessage(event) {
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
         gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacter, msg.myCharacter);
+        showGameResult(msg.result, msg.guesserIsHost);
     }
 }
 
@@ -176,10 +176,10 @@ function assignCharacters() {
     hostSecret = characters[hostIndex].replace(/\..+$/, '');
     guestSecret = characters[guestIndex].replace(/\..+$/, '');
     
-    myCharacter = hostSecret; // у хоста
+    myCharacter = isHost ? hostSecret : guestSecret; 
 
     dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
-    dataChannel.send(JSON.stringify({type:'assign', myCharacter: guestSecret}));
+    dataChannel.send(JSON.stringify({type:'assign', myCharacter: (isHost ? guestSecret : hostSecret)}));
 
     renderGameBoards();
 }
@@ -225,9 +225,6 @@ function createCharCard(charName) {
     div.className = 'char';
     const img = document.createElement('img');
     const cFile = characters.find(c => c.replace(/\..+$/, '') === charName);
-    if (!cFile) {
-        console.warn("Не найден файл для персонажа:", charName);
-    }
     img.src = cFile ? `packs/${chosenSet}/${cFile}` : '';
     const p = document.createElement('p');
     p.textContent = charName;
@@ -244,28 +241,28 @@ function makeGuess(characterName) {
 
 function endGame(guessedCorrectly) {
     gameOver = true;
-    // Я - defender
+    // Я - defender (кто получил guess)
+    // guessedCorrectly = true => guesser выиграл, иначе defender
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
-
-    const yourChar = isHost ? hostSecret : guestSecret;
-    const oppChar = isHost ? guestSecret : hostSecret;
 
     dataChannel.send(JSON.stringify({
         type: 'guessResult',
         result: result,
-        guesserIsHost: guesserIsHost,
-        yourCharacter: yourChar,
-        myCharacter: oppChar
+        guesserIsHost: guesserIsHost
     }));
 
-    showGameResult(result, guesserIsHost, yourChar, oppChar);
+    showGameResult(result, guesserIsHost);
 }
 
-function showGameResult(result, guesserIsHost, yourChar, oppChar) {
+function showGameResult(result, guesserIsHost) {
     gameOver = true;
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
+
+    // Определяем своих персонажей из локальных данных
+    const localMyChar = isHost ? hostSecret : guestSecret;
+    const localOppChar = isHost ? guestSecret : hostSecret;
 
     const iAmGuesser = (guesserIsHost === isHost);
 
@@ -290,17 +287,17 @@ function showGameResult(result, guesserIsHost, yourChar, oppChar) {
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(yourChar));
+    finalYourChar.appendChild(createCharCard(localMyChar));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(oppChar));
+    finalOppChar.appendChild(createCharCard(localOppChar));
 }
 
 function startNewRound() {
-    // Без разрыва соединения, переигрываем раунд:
+    // Начинаем новый раунд без переподключения
     gameOver = false;
-    assignCharacters();
+    assignCharacters(); // Снова выбрать персонажей и отрисовать доски
 }
 
 async function createOfferWithCompleteICE(pc) {
