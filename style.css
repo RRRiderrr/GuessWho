@@ -14,19 +14,49 @@ body {
     box-shadow: 0 0 10px rgba(0,0,0,0.1);
 }
 
-#characters {
+#characters, #my-characters, #opponent-characters {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
     margin-top: 20px;
 }
 
-#characters .char {
+.board-section {
+    margin-bottom: 20px;
+}
+
+.char {
     border: 1px solid #ccc;
     padding: 5px;
     text-align: center;
     width: 100px;
+    position: relative;
+    cursor: pointer;
 }
-#characters .char img {
+
+.char img {
     max-width: 100%;
+    display: block;
+    margin: 0 auto;
+}
+
+.char.hidden {
+    opacity: 0.3;
+}
+
+.char .guess-btn {
+    margin-top: 5px;
+    cursor: pointer;
+    font-size: 12px;
+    padding: 2px 5px;
+}
+
+.boards {
+    display: flex;
+    gap: 20px;
+    justify-content: space-between;
+}
+
+#game-result {
+    text-align: center;
 }
