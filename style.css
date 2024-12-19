@@ -92,7 +92,7 @@ textarea, input[type="text"] {
 /* Карточки персонажей */
 .char {
     border: 1px solid #ccc;
-    border-radius: 5px;
+    border-radius: 8px; /* Закругление углов карточки */
     overflow: hidden;
     text-align: center;
     width: 120px;
@@ -112,7 +112,7 @@ textarea, input[type="text"] {
     max-height: 120px;
     display: block;
     margin: 5px 0;
-    border-radius: 5px; /* Закругление углов картинки */
+    border-radius: 8px; /* Закругление углов картинки */
 }
 
 .char p {
