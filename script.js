@@ -10,7 +10,7 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false; 
-let myCharacter = null; // Персонаж текущего игрока
+let myCharacter = null;
 let gameOver = false;
 
 let offerDesc = null;
@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            // Запустить новый раунд без переподключения
+            // Новый раунд без переподключения
             startNewRound();
         });
 
@@ -156,8 +156,9 @@ function onDataChannelMessage(event) {
         const guessedCorrectly = (guessedCharacter === myCharacter);
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
+        // Т.к. теперь передаем персонажей в guessResult, гарантируем корректный показ итога
         gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost);
+        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacter, msg.opponentCharacter);
     }
 }
 
@@ -242,27 +243,28 @@ function makeGuess(characterName) {
 function endGame(guessedCorrectly) {
     gameOver = true;
     // Я - defender (кто получил guess)
-    // guessedCorrectly = true => guesser выиграл, иначе defender
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
+
+    // Гарантируем корректные данные о персонажах для итога
+    const yourChar = isHost ? hostSecret : guestSecret;
+    const oppChar = isHost ? guestSecret : hostSecret;
 
     dataChannel.send(JSON.stringify({
         type: 'guessResult',
         result: result,
-        guesserIsHost: guesserIsHost
+        guesserIsHost: guesserIsHost,
+        yourCharacter: yourChar,
+        opponentCharacter: oppChar
     }));
 
-    showGameResult(result, guesserIsHost);
+    showGameResult(result, guesserIsHost, yourChar, oppChar);
 }
 
-function showGameResult(result, guesserIsHost) {
+function showGameResult(result, guesserIsHost, yourChar, oppChar) {
     gameOver = true;
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
-
-    // Определяем своих персонажей из локальных данных
-    const localMyChar = isHost ? hostSecret : guestSecret;
-    const localOppChar = isHost ? guestSecret : hostSecret;
 
     const iAmGuesser = (guesserIsHost === isHost);
 
@@ -287,17 +289,17 @@ function showGameResult(result, guesserIsHost) {
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(localMyChar));
+    finalYourChar.appendChild(createCharCard(yourChar));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(localOppChar));
+    finalOppChar.appendChild(createCharCard(oppChar));
 }
 
 function startNewRound() {
     // Начинаем новый раунд без переподключения
     gameOver = false;
-    assignCharacters(); // Снова выбрать персонажей и отрисовать доски
+    assignCharacters(); // Снова назначаем персонажей и отрисовываем доску
 }
 
 async function createOfferWithCompleteICE(pc) {
