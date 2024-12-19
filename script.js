@@ -21,11 +21,9 @@ let guestFile = null; // Персонаж гостя
 let playerName = ''; // Псевдоним игрока
 
 function showScreen(screenId) {
-    // Скрываем все экраны
     const screens = document.querySelectorAll('.container');
     screens.forEach(screen => screen.style.display = 'none');
 
-    // Показываем только текущий экран
     const targetScreen = document.getElementById(screenId);
     if (targetScreen) {
         targetScreen.style.display = 'block';
@@ -34,10 +32,8 @@ function showScreen(screenId) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Начинаем с экрана ввода псевдонима
         showScreen('nickname-screen');
 
-        // Обработка кнопки "Начать игру"
         document.getElementById('start-game-btn').addEventListener('click', () => {
             const nickname = document.getElementById('nickname').value.trim();
             if (nickname) {
@@ -48,7 +44,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Загрузка наборов персонажей
         const response = await fetch('packs.json');
         const data = await response.json();
 
@@ -61,19 +56,16 @@ document.addEventListener('DOMContentLoaded', async () => {
             setSelect.appendChild(opt);
         });
 
-        // Обработка перехода к настройке хоста
         document.getElementById('host-btn').addEventListener('click', () => {
             showScreen('host-setup');
             isHost = true;
         });
 
-        // Обработка перехода к настройке клиента
         document.getElementById('join-btn').addEventListener('click', () => {
             showScreen('join-setup');
             isHost = false;
         });
 
-        // Обработка начала игры хостом
         document.getElementById('host-start').addEventListener('click', async () => {
             const select = document.getElementById('set-select');
             chosenSet = select.value;
@@ -82,25 +74,13 @@ document.addEventListener('DOMContentLoaded', async () => {
             showScreen('signal-exchange');
         });
 
-        // Обработка начала игры клиентом
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
-            if (!remoteOffer) {
-                alert('Введите предложение от хоста!');
-                return;
-            }
-
-            try {
-                const parsedOffer = JSON.parse(remoteOffer);
-                await startGuest(parsedOffer);
-                showScreen('signal-exchange');
-            } catch (error) {
-                alert('Некорректное предложение. Убедитесь, что вы вставили правильные данные.');
-                console.error("Ошибка парсинга JSON:", error);
-            }
+            if (!remoteOffer) return;
+            await startGuest(remoteOffer);
+            showScreen('signal-exchange');
         });
 
-        // Применение answer
         document.getElementById('apply-answer').addEventListener('click', async () => {
             const answerText = document.getElementById('remote-answer').value;
             if (!answerText) return;
@@ -115,7 +95,6 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        // Обработка кнопки "Начать заново"
         document.getElementById('restart-btn').addEventListener('click', () => {
             gameOver = false;
             showScreen('setup-screen');
@@ -140,24 +119,21 @@ async function startHost() {
 }
 
 async function startGuest(remoteOffer) {
-    try {
-        remoteConnection = new RTCPeerConnection(rtcConfig);
+    remoteConnection = new RTCPeerConnection(rtcConfig);
 
-        remoteConnection.ondatachannel = (event) => {
-            dataChannel = event.channel;
-            dataChannel.onopen = onDataChannelOpen;
-            dataChannel.onmessage = onDataChannelMessage;
-        };
+    remoteConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        dataChannel.onopen = onDataChannelOpen;
+        dataChannel.onmessage = onDataChannelMessage;
+    };
 
-        await remoteConnection.setRemoteDescription(remoteOffer);
+    const offerDesc = JSON.parse(remoteOffer);
+    await remoteConnection.setRemoteDescription(offerDesc);
 
-        const answer = await remoteConnection.createAnswer();
-        await remoteConnection.setLocalDescription(answer);
+    const answer = await remoteConnection.createAnswer();
+    await remoteConnection.setLocalDescription(answer);
 
-        document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
-    } catch (error) {
-        console.error("Ошибка при обработке remoteOffer:", error);
-    }
+    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 }
 
 function onDataChannelOpen() {
