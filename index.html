@@ -1,85 +1,67 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Угадай кто?</title>
-    <link rel="stylesheet" href="style.css"/>
+    <link rel="stylesheet" href="style.css">
 </head>
 <body>
-
-<div class="container">
-    <h1>Угадай кто?</h1>
-    
-    <div id="setup-screen">
-        <h2>Выберите свою роль:</h2>
-        <button id="host-btn">Я хост (создать игру)</button>
-        <button id="join-btn">Я участник (подключиться к игре)</button>
+    <div id="nickname-screen" class="container active">
+        <h1>Введите ваш псевдоним</h1>
+        <input type="text" id="nickname" placeholder="Ваш псевдоним">
+        <button id="start-game-btn">Начать игру</button>
     </div>
 
-    <div id="host-setup" style="display:none;">
-        <h2>Выберите набор персонажей:</h2>
+    <div id="setup-screen" class="container">
+        <h1>Угадай кто?</h1>
+        <button id="host-btn">Я хочу быть хостом</button>
+        <button id="join-btn">Я хочу присоединиться</button>
+    </div>
+
+    <div id="host-setup" class="container">
+        <h1>Настройки хоста</h1>
+        <label for="set-select">Выберите набор персонажей:</label>
         <select id="set-select"></select>
-        <button id="host-start">Начать игру как хост</button>
+        <button id="host-start">Начать игру</button>
     </div>
 
-    <div id="join-setup" style="display:none;">
-        <h2>Вставьте offer от хоста:</h2>
-        <textarea id="remote-offer" rows="10" cols="50"></textarea>
-        <button id="join-start">Подключиться</button>
+    <div id="join-setup" class="container">
+        <h1>Подключение к хосту</h1>
+        <textarea id="remote-offer" placeholder="Вставьте предложение от хоста"></textarea>
+        <button id="join-start">Присоединиться</button>
     </div>
 
-    <div id="signal-exchange" style="display:none;">
-        <h2>Скопируйте и передайте это (offer или answer) другому игроку:</h2>
-        <textarea id="local-desc" rows="10" cols="50"></textarea>
-        <button id="copy-desc">Копировать</button>
+    <div id="signal-exchange" class="container">
+        <h1>Обмен сигналами</h1>
+        <textarea id="local-desc" readonly></textarea>
+        <button id="copy-offer">Скопировать</button>
+        <textarea id="remote-answer" placeholder="Вставьте ответ"></textarea>
+        <button id="apply-answer">Применить ответ</button>
     </div>
 
-    <div id="host-accept-answer" style="display:none;">
-        <h3>Вставьте answer от гостя:</h3>
-        <textarea id="remote-answer" rows="10" cols="50"></textarea><br>
-        <button id="apply-answer">Применить answer</button>
-    </div>
-
-    <div id="game-board" style="display:none;">
-        <h2>Игра</h2>
-        <div class="boards">
-            <div class="board-section">
-                <h3>Мой персонаж</h3>
-                <div id="my-character-container"></div>
-            </div>
-            <div class="board-section">
-                <h3>Персонажи оппонента</h3>
-                <div id="opponent-characters"></div>
-            </div>
+    <div id="game-board" class="container">
+        <h1>Угадай кто?</h1>
+        <div id="my-character-container">
+            <h2>Мой персонаж</h2>
         </div>
-        <div id="controls">
-            <input type="text" id="question" placeholder="Задайте вопрос (да/нет)"/>
-            <button id="ask-btn">Спросить</button>
-            <p id="status"></p>
+        <div id="opponent-characters">
+            <h2>Персонажи оппонента</h2>
         </div>
     </div>
 
-    <div id="game-result" style="display:none;">
-        <h2>Результат</h2>
+    <div id="game-result" class="container">
+        <h1>Результат</h1>
         <p id="result-message"></p>
-        
-        <div class="boards">
-            <div class="board-section">
-                <h3>Ваш персонаж</h3>
-                <div id="final-your-char"></div>
-            </div>
-            <div class="board-section">
-                <h3>Персонаж оппонента</h3>
-                <div id="final-opp-char"></div>
-            </div>
+        <div id="final-your-char">
+            <h2>Ваш персонаж</h2>
         </div>
-
+        <div id="final-opp-char">
+            <h2>Персонаж оппонента</h2>
+        </div>
         <button id="restart-btn">Начать заново</button>
     </div>
 
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
