@@ -207,6 +207,7 @@ function renderGameBoards() {
     oppBoard.innerHTML = '';
     characters.forEach(c => {
         const div = createCharCard(c);
+
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
@@ -220,11 +221,7 @@ function renderGameBoards() {
             if (gameOver) return;
             div.classList.toggle('disabled');
             const btn = div.querySelector('.guess-btn');
-            if (div.classList.contains('disabled')) {
-                btn.disabled = true;
-            } else {
-                btn.disabled = false;
-            }
+            btn.disabled = div.classList.contains('disabled');
         });
 
         div.appendChild(guessBtn);
@@ -273,6 +270,21 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
+    const iAmGuesser = (guesserIsHost === isHost);
+
+    let msg;
+    if (result === 'guesser') {
+        msg = iAmGuesser
+            ? "Вы выиграли! Вы угадали персонажа оппонента."
+            : "Вы проиграли! Оппонент угадал вашего персонажа.";
+    } else {
+        msg = iAmGuesser
+            ? "Вы проиграли! Вы не угадали персонажа оппонента."
+            : "Вы выиграли! Оппонент не угадал вашего персонажа.";
+    }
+
+    document.getElementById('result-message').textContent = msg;
+
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
     finalYourChar.appendChild(createCharCard(yourCharFile));
@@ -283,7 +295,9 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
 }
 
 function startNewRound() {
+    console.log("Начинаем новый раунд...");
     gameOver = false;
+
     assignCharacters();
 }
 
