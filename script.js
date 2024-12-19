@@ -18,9 +18,25 @@ let answerDesc = null;
 
 let hostFile = null; // Персонаж хоста
 let guestFile = null; // Персонаж гостя
+let playerName = ''; // Псевдоним игрока
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        // Псевдоним игрока
+        const nicknameInput = document.getElementById('nickname');
+        const startGameBtn = document.getElementById('start-game-btn');
+
+        startGameBtn.addEventListener('click', () => {
+            const nickname = nicknameInput.value.trim();
+            if (nickname === '') {
+                alert('Введите псевдоним!');
+                return;
+            }
+            playerName = nickname;
+            document.getElementById('nickname-screen').style.display = 'none';
+            document.getElementById('setup-screen').style.display = 'block';
+        });
+
         const response = await fetch('packs.json');
         const data = await response.json();
 
@@ -234,6 +250,7 @@ function createCharCard(fileName) {
     div.className = 'char';
     const img = document.createElement('img');
     img.src = `packs/${chosenSet}/${fileName}`;
+    img.alt = fileName;
     const p = document.createElement('p');
     p.textContent = fileName.replace(/\..+$/, '');
     div.appendChild(img);
