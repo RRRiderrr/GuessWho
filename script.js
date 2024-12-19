@@ -88,8 +88,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            startNewRound();
-        });
+    gameOver = false; // Сбрасываем состояние игры
+    if (dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({ type: 'restart' })); // Уведомляем противника о новом раунде
+    }
+    startNewRound();
+});
 
     } catch (e) {
         console.error("Ошибка при загрузке packs.json:", e);
@@ -157,8 +161,12 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'guessResult') {
         gameOver = true;
         showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+    } else if (msg.type === 'restart') {
+        console.log("Получена команда начать новый раунд от противника.");
+        startNewRound();
     }
 }
+
 
 function checkIfReady() {
     if (isHost) {
@@ -298,8 +306,15 @@ function startNewRound() {
     console.log("Начинаем новый раунд...");
     gameOver = false;
 
-    assignCharacters();
+    // Сбрасываем персонажей и разблокируем их
+    const oppBoard = document.getElementById('opponent-characters');
+    const myBoard = document.getElementById('my-character-container');
+    oppBoard.innerHTML = '';
+    myBoard.innerHTML = '';
+
+    assignCharacters(); // Заново назначаем персонажей
 }
+
 
 async function createOfferWithCompleteICE(pc) {
     const offer = await pc.createOffer();
