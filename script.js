@@ -1,4 +1,4 @@
-// Конфигурация для RTCPeerConnection (используем публичный STUN)
+// Конфигурация для RTCPeerConnection
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' }
@@ -11,7 +11,7 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false; 
-let myCharacter = null;        // Секретный персонаж текущего игрока
+let myCharacter = null;
 let gameOver = false;
 
 let offerDesc = null;
@@ -124,7 +124,7 @@ async function startGuest(remoteOffer) {
 
     offerDesc = JSON.parse(remoteOffer);
     if (offerDesc.type !== 'offer') {
-        console.error("Получен некорректный SDP, ожидается offer");
+        console.error("Некорректный SDP, ожидается offer");
         return;
     }
     await remoteConnection.setRemoteDescription(offerDesc);
@@ -152,16 +152,14 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
     } else if (msg.type === 'guess') {
-        // Получил guess - я defender
+        // Я получил guess, значит я defender
         const guessedCharacter = msg.characterName;
-        // Если guessedCharacter === myCharacter -> guesser выиграл
-        // Иначе defender выиграл
         const guessedCorrectly = (guessedCharacter === myCharacter);
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
-        gameOver = true;
         // msg.result: 'guesser' или 'defender'
         // msg.guesserIsHost: true/false
+        gameOver = true;
         showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacter, msg.myCharacter);
     }
 }
@@ -171,8 +169,6 @@ function checkIfReady() {
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
             assignCharacters();
         }
-    } else {
-        // Гость готов, когда получит assign
     }
 }
 
@@ -183,7 +179,7 @@ function assignCharacters() {
     hostSecret = characters[hostIndex].replace(/\..+$/, '');
     guestSecret = characters[guestIndex].replace(/\..+$/, '');
     
-    myCharacter = hostSecret; // хосту свой персонаж
+    myCharacter = hostSecret; // у хоста
 
     dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
     dataChannel.send(JSON.stringify({type:'assign', myCharacter: guestSecret}));
@@ -201,13 +197,12 @@ function renderGameBoards() {
     myContainer.innerHTML = '';
     myContainer.appendChild(createCharCard(myCharacter));
 
-    // Персонажи оппонента (все)
+    // Персонажи оппонента
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
         const name = c.replace(/\..+$/, '');
         const div = createCharCard(name);
-        // Добавим кнопку
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
@@ -218,7 +213,6 @@ function renderGameBoards() {
         });
         div.appendChild(guessBtn);
 
-        // Клик по карточке оппонента - скрыть/показать
         div.addEventListener('click', () => {
             if (gameOver) return;
             div.classList.toggle('hidden');
@@ -249,29 +243,23 @@ function makeGuess(characterName) {
 
 function endGame(guessedCorrectly) {
     gameOver = true;
-    // Я - defender (кто получил guess)
-    // guessedCorrectly = true => guesser выигрывает
-    // guessedCorrectly = false => defender выигрывает
+    // Я - defender
+    // guessedCorrectly = true => guesser выиграл
+    // guessedCorrectly = false => defender выиграл
     const result = guessedCorrectly ? 'guesser' : 'defender';
+    const guesserIsHost = !isHost; // Если я defender, guesser - противоположный игрок
 
-    // guesserIsHost = !isHost (если я defender, значит guesser - противоположная роль)
-    const guesserIsHost = !isHost;
-
-    // yourCharacter = мой персонаж, myCharacter = персонаж оппонента
-    // Если я host, yourCharacter = hostSecret, oppCharacter = guestSecret
-    // Если я guest, yourCharacter = guestSecret, oppCharacter = hostSecret
     const yourChar = isHost ? hostSecret : guestSecret;
     const oppChar = isHost ? guestSecret : hostSecret;
 
-    const guessResultMsg = {
+    dataChannel.send(JSON.stringify({
         type: 'guessResult',
         result: result,
         guesserIsHost: guesserIsHost,
         yourCharacter: yourChar,
         myCharacter: oppChar
-    };
+    }));
 
-    dataChannel.send(JSON.stringify(guessResultMsg));
     showGameResult(result, guesserIsHost, yourChar, oppChar);
 }
 
@@ -280,33 +268,28 @@ function showGameResult(result, guesserIsHost, yourChar, oppChar) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
-    // Определяем сообщение в зависимости от того, кто выиграл.
-    // result = 'guesser' (угадавший выиграл), 'defender' (защищающийся выиграл)
-    // Если guesserIsHost === isHost => я guesser
+    // Определяем, я угадывавший или нет
     const iAmGuesser = (guesserIsHost === isHost);
 
     let msg;
     if (result === 'guesser') {
-        // guesser выиграл
+        // Guesser угадал
         if (iAmGuesser) {
             msg = "Вы угадали персонажа оппонента!";
         } else {
-            msg = "Оппонент выиграл и угадал персонажа до вас!";
+            msg = "Оппонент угадал вашего персонажа! Вы проиграли.";
         }
     } else {
-        // defender выиграл
-        if (!iAmGuesser) {
-            // Я defender
-            msg = "Вы угадали персонажа оппонента!";
+        // Defender выиграл
+        if (iAmGuesser) {
+            msg = "Вы не угадали персонажа оппонента! Вы проиграли.";
         } else {
-            // Я guesser
-            msg = "Оппонент выиграл и угадал персонажа до вас!";
+            msg = "Оппонент не угадал вашего персонажа! Вы выиграли.";
         }
     }
 
     document.getElementById('result-message').textContent = msg;
 
-    // Показать оба персонажа
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
     finalYourChar.appendChild(createCharCard(yourChar));
