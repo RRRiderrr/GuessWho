@@ -10,15 +10,14 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false;
-let myCharacterFile = null; // Персонаж текущего игрока
+let myCharacterFile = null;
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-let hostFile = null; // Персонаж хоста
-let guestFile = null; // Персонаж гостя
-let playerName = ''; // Псевдоним игрока
+let hostFile = null;
+let guestFile = null;
 
 function showScreen(screenId) {
     const screens = document.querySelectorAll('.container');
@@ -31,17 +30,7 @@ function showScreen(screenId) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        showScreen('nickname-screen');
-
-        document.getElementById('start-game-btn').addEventListener('click', () => {
-            const nickname = document.getElementById('nickname').value.trim();
-            if (nickname) {
-                playerName = nickname;
-                showScreen('setup-screen');
-            } else {
-                alert('Введите ваш псевдоним!');
-            }
-        });
+        showScreen('setup-screen');
 
         const response = await fetch('packs.json');
         const data = await response.json();
@@ -75,19 +64,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
-            if (!remoteOffer) {
-                alert('Введите предложение от хоста!');
-                return;
-            }
-
-            try {
-                const parsedOffer = JSON.parse(remoteOffer);
-                await startGuest(parsedOffer);
-                showScreen('signal-exchange');
-            } catch (error) {
-                alert('Некорректное предложение. Убедитесь, что вы вставили правильные данные.');
-                console.error("Ошибка парсинга JSON:", error);
-            }
+            if (!remoteOffer) return;
+            await startGuest(remoteOffer);
+            showScreen('signal-exchange');
         });
 
         document.getElementById('apply-answer').addEventListener('click', async () => {
@@ -105,10 +84,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            if (dataChannel && dataChannel.readyState === 'open') {
-                dataChannel.send(JSON.stringify({ type: 'restart' }));
-            }
-            restartGame();
+            gameOver = false;
+            showScreen('setup-screen');
         });
 
     } catch (e) {
@@ -165,8 +142,8 @@ function onDataChannelMessage(event) {
         } else if (msg.type === 'assign') {
             myCharacterFile = msg.myCharacter;
             renderGameBoards();
-        } else if (msg.type === 'restart') {
-            restartGame();
+        } else if (msg.type === 'question') {
+            document.getElementById('status').textContent = `${msg.sender} пишет: ${msg.text}`;
         } else if (msg.type === 'guess') {
             const guessedCharacter = msg.characterName;
             const guessedCorrectly = guessedCharacter === myCharacterFile;
@@ -177,15 +154,6 @@ function onDataChannelMessage(event) {
     } catch (error) {
         console.error("Ошибка при обработке сообщения через DataChannel:", error);
     }
-}
-
-function restartGame() {
-    gameOver = false;
-    myCharacterFile = null;
-    hostFile = null;
-    guestFile = null;
-    renderGameBoards();
-    showScreen('setup-screen');
 }
 
 function checkIfReady() {
@@ -225,9 +193,7 @@ function renderGameBoards() {
 
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-    if (myCharacterFile) {
-        myContainer.appendChild(createCharCard(myCharacterFile));
-    }
+    myContainer.appendChild(createCharCard(myCharacterFile));
 
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
@@ -261,9 +227,8 @@ function createCharCard(fileName) {
     const img = document.createElement('img');
     img.src = `packs/${chosenSet}/${fileName}`;
     img.alt = fileName;
-    img.style.borderRadius = '10px';
     const p = document.createElement('p');
-    p.textContent = fileName.replace(/\..+$/, '');
+    p.textContent = fileName.replace(/\\..+$/, '');
     div.appendChild(img);
     div.appendChild(p);
     return div;
