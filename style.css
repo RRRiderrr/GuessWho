@@ -82,9 +82,11 @@ textarea, input[type="text"] {
 
 #opponent-characters {
     display: grid;
-    grid-template-columns: repeat(4, 1fr); /* 4 карточки в ряд */
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
     gap: 15px;
     justify-items: center;
+    max-width: 100%;
+    overflow: hidden;
 }
 
 /* Карточки персонажей */
@@ -110,6 +112,7 @@ textarea, input[type="text"] {
     max-height: 120px;
     display: block;
     margin: 5px 0;
+    border-radius: 5px; /* Закругление углов картинки */
 }
 
 .char p {
