@@ -60,3 +60,26 @@ body {
 #game-result {
     text-align: center;
 }
+#my-character-container,
+#opponent-characters {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 10px;
+}
+
+.char {
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    padding: 5px;
+    text-align: center;
+}
+
+.char img {
+    max-width: 100%;
+    height: auto;
+    border-radius: 5px;
+}
+
+.char.hidden {
+    opacity: 0.4;
+}
