@@ -1,0 +1,12 @@
+{
+  "sets": [
+    {
+      "name": "Harry Potter",
+      "characters": ["Neville Longbottom.png", "Jinny Weasley.png", "Hermione Granger.png", "Ron Weasley.png", "Harry Potter.png"]
+    },
+    {
+      "name": "Avatar",
+      "characters": ["Jake Sully.png"]
+    }
+  ]
+}

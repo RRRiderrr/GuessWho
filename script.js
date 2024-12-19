@@ -1,0 +1,153 @@
+// Глобальные переменные для WebRTC
+let localConnection;
+let remoteConnection; 
+let dataChannel;
+let chosenSet = null;
+let characters = [];
+let isHost = false; // Роль: хост или гость
+
+// При загрузке страницы получаем списки наборов
+document.addEventListener('DOMContentLoaded', async () => {
+    const response = await fetch('packs.json');
+    const data = await response.json();
+
+    const setSelect = document.getElementById('set-select');
+    data.sets.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.name;
+        opt.textContent = s.name;
+        opt.dataset.chars = JSON.stringify(s.characters);
+        setSelect.appendChild(opt);
+    });
+
+    document.getElementById('host-btn').addEventListener('click', () => {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('host-setup').style.display = 'block';
+        isHost = true;
+    });
+
+    document.getElementById('join-btn').addEventListener('click', () => {
+        document.getElementById('setup-screen').style.display = 'none';
+        document.getElementById('join-setup').style.display = 'block';
+        isHost = false;
+    });
+
+    document.getElementById('host-start').addEventListener('click', async () => {
+        const select = document.getElementById('set-select');
+        chosenSet = select.value;
+        characters = JSON.parse(select.selectedOptions[0].dataset.chars);
+
+        // Инициализация WebRTC для хоста
+        await startHost();
+    });
+
+    document.getElementById('join-start').addEventListener('click', async () => {
+        const remoteOffer = document.getElementById('remote-offer').value;
+        if (!remoteOffer) return;
+        await startGuest(remoteOffer);
+    });
+
+    document.getElementById('copy-desc').addEventListener('click', () => {
+        const desc = document.getElementById('local-desc');
+        desc.select();
+        document.execCommand('copy');
+    });
+
+    document.getElementById('ask-btn').addEventListener('click', () => {
+        const question = document.getElementById('question').value.trim();
+        if (question && dataChannel && dataChannel.readyState === 'open') {
+            dataChannel.send(JSON.stringify({type:'question', text:question}));
+            document.getElementById('status').textContent = "Вы спросили: " + question;
+        }
+    });
+});
+
+async function startHost() {
+    localConnection = new RTCPeerConnection();
+
+    // Создаём dataChannel для обмена сообщениями
+    dataChannel = localConnection.createDataChannel("gameChannel");
+    dataChannel.onopen = onDataChannelOpen;
+    dataChannel.onmessage = onDataChannelMessage;
+
+    // Генерируем offer
+    const offer = await localConnection.createOffer();
+    await localConnection.setLocalDescription(offer);
+
+    // Показать пользователю offer для передачи
+    document.getElementById('host-setup').style.display = 'none';
+    document.getElementById('signal-exchange').style.display = 'block';
+    document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
+
+    // Ожидать answer от другого игрока
+    localConnection.onicecandidate = (e) => {
+        if (e.candidate) return; 
+        // Все кандидаты собраны, offer уже отображён
+    };
+}
+
+async function startGuest(remoteOffer) {
+    remoteConnection = new RTCPeerConnection();
+
+    remoteConnection.ondatachannel = (event) => {
+        dataChannel = event.channel;
+        dataChannel.onopen = onDataChannelOpen;
+        dataChannel.onmessage = onDataChannelMessage;
+    };
+
+    const offerDesc = JSON.parse(remoteOffer);
+    await remoteConnection.setRemoteDescription(offerDesc);
+    const answer = await remoteConnection.createAnswer();
+    await remoteConnection.setLocalDescription(answer);
+
+    // Показать пользователю answer
+    document.getElementById('join-setup').style.display = 'none';
+    document.getElementById('signal-exchange').style.display = 'block';
+    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+
+    remoteConnection.onicecandidate = (e) => {
+        if (e.candidate) return;
+        // Все кандидаты собраны, answer уже отображён
+    };
+}
+
+function onDataChannelOpen() {
+    console.log('Data channel открыто!');
+    if (isHost) {
+        // Отправляем выбранный набор и список персонажей
+        dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
+    }
+
+    // Переходим к игровому экрану
+    document.getElementById('signal-exchange').style.display = 'none';
+    document.getElementById('game-board').style.display = 'block';
+}
+
+function onDataChannelMessage(event) {
+    const msg = JSON.parse(event.data);
+    if (msg.type === 'set') {
+        chosenSet = msg.set;
+        characters = msg.chars;
+        renderCharacters();
+    } else if (msg.type === 'question') {
+        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
+        // Здесь можно добавить логику ответа (пока что просто отображаем вопрос)
+    }
+}
+
+function renderCharacters() {
+    const board = document.getElementById('characters');
+    board.innerHTML = '';
+    characters.forEach(c => {
+        const name = c.replace(/\..+$/, ''); // убираем расширение для имени
+        const div = document.createElement('div');
+        div.className = 'char';
+        const img = document.createElement('img');
+        img.src = `packs/${chosenSet}/${c}`;
+        const p = document.createElement('p');
+        p.textContent = name;
+        div.appendChild(img);
+        div.appendChild(p);
+        board.appendChild(div);
+    });
+}
