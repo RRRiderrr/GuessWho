@@ -1,88 +1,8 @@
-body {
-    font-family: Arial, sans-serif;
-    margin: 0;
-    padding: 0;
-    background-color: #f7f7f7;
-    color: #333;
-}
-
-.container {
-    width: 90%;
-    max-width: 800px;
-    margin: 20px auto;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
-}
-
-h1 {
-    font-size: 24px;
-    text-align: center;
-    margin-bottom: 20px;
-}
-
-h2, h3 {
-    font-size: 20px;
-    margin-bottom: 10px;
-}
-
-button {
-    background-color: #007bff;
-    color: #fff;
-    border: none;
-    padding: 10px 15px;
-    font-size: 14px;
-    cursor: pointer;
-    border-radius: 5px;
-    transition: background-color 0.3s;
-}
-
-button:hover {
-    background-color: #0056b3;
-}
-
-button:disabled {
-    background-color: #aaa;
-    cursor: not-allowed;
-}
-
-textarea {
-    width: 100%;
-    height: 100px;
-    margin: 10px 0;
-    padding: 10px;
-    font-size: 14px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-input[type="text"] {
-    width: calc(100% - 100px);
-    padding: 10px;
-    margin-right: 10px;
-    border: 1px solid #ccc;
-    border-radius: 5px;
-}
-
-.boards {
-    display: flex;
-    justify-content: space-between;
-    gap: 20px;
-    margin-top: 20px;
-}
-
-.board-section {
-    width: 48%;
-}
-
-#my-character-container,
 #opponent-characters {
-    display: flex;
-    flex-wrap: wrap;
+    display: grid;
+    grid-template-columns: repeat(4, 1fr); /* 4 карточки в ряд */
     gap: 15px;
-    margin-top: 15px;
-    justify-content: center;
+    justify-items: center;
 }
 
 .char {
@@ -91,10 +11,10 @@ input[type="text"] {
     overflow: hidden;
     text-align: center;
     width: 120px;
+    height: 200px;
     cursor: pointer;
     transition: transform 0.3s, opacity 0.3s;
     position: relative;
-    height: 200px;
     display: flex;
     flex-direction: column;
     justify-content: space-between;
@@ -108,26 +28,12 @@ input[type="text"] {
     margin: 5px 0;
 }
 
-.char p {
-    margin: 0;
-    font-size: 14px;
-    font-weight: bold;
-}
-
-.char.hidden {
-    opacity: 0.5;
-}
-
 .char.disabled {
-    opacity: 0.4;
-    pointer-events: none;
+    opacity: 0.5;
+    pointer-events: none; /* Запрещает клики по помеченным карточкам */
 }
 
-.char:hover {
-    transform: scale(1.05);
-}
-
-.guess-btn {
+.char .guess-btn {
     margin-top: auto;
     font-size: 12px;
     padding: 5px 10px;
@@ -139,38 +45,7 @@ input[type="text"] {
     transition: background-color 0.3s;
 }
 
-.guess-btn:hover {
-    background-color: #218838;
-}
-
-.guess-btn:disabled {
+.char .guess-btn:disabled {
     background-color: #aaa;
     cursor: not-allowed;
-}
-
-#status {
-    margin-top: 20px;
-    font-size: 16px;
-    font-weight: bold;
-    color: #555;
-    text-align: center;
-}
-
-#game-result {
-    text-align: center;
-    margin-top: 20px;
-}
-
-#game-result p {
-    font-size: 18px;
-    margin: 10px 0;
-    font-weight: bold;
-}
-
-#game-result .boards {
-    margin-top: 20px;
-}
-
-.hidden {
-    display: none;
 }
