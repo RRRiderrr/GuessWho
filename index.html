@@ -1,47 +1,53 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="en">
 <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Угадай кто?</title>
-    <link rel="stylesheet" href="style.css"/>
+    <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-<div class="container">
-    <h1>Угадай кто?</h1>
-    
-    <div id="setup-screen">
-        <h2>Выберите свою роль:</h2>
-        <button id="host-btn">Я хост (создать игру)</button>
-        <button id="join-btn">Я участник (подключиться к игре)</button>
+    <!-- Экран ввода псевдонима -->
+    <div id="nickname-screen" class="container">
+        <h1>Введите ваш псевдоним</h1>
+        <input type="text" id="nickname" placeholder="Ваш псевдоним">
+        <button id="start-game-btn">Начать игру</button>
     </div>
 
-    <div id="host-setup" style="display:none;">
-        <h2>Выберите набор персонажей:</h2>
+    <!-- Настройка соединения -->
+    <div id="setup-screen" class="container hidden">
+        <h1>Угадай кто?</h1>
+        <button id="host-btn">Я хочу быть хостом</button>
+        <button id="join-btn">Я хочу присоединиться</button>
+    </div>
+
+    <!-- Настройки хоста -->
+    <div id="host-setup" class="container hidden">
+        <h1>Настройки хоста</h1>
+        <label for="set-select">Выберите набор персонажей:</label>
         <select id="set-select"></select>
-        <button id="host-start">Начать игру как хост</button>
+        <button id="host-start">Начать игру</button>
     </div>
 
-    <div id="join-setup" style="display:none;">
-        <h2>Вставьте offer от хоста:</h2>
-        <textarea id="remote-offer" rows="10" cols="50"></textarea>
-        <button id="join-start">Подключиться</button>
+    <!-- Настройки подключения -->
+    <div id="join-setup" class="container hidden">
+        <h1>Подключение к хосту</h1>
+        <textarea id="remote-offer" placeholder="Вставьте предложение хоста"></textarea>
+        <button id="join-start">Присоединиться</button>
     </div>
 
-    <div id="signal-exchange" style="display:none;">
-        <h2>Скопируйте и передайте это (offer или answer) другому игроку:</h2>
-        <textarea id="local-desc" rows="10" cols="50"></textarea>
-        <button id="copy-desc">Копировать</button>
-    </div>
-
-    <div id="host-accept-answer" style="display:none;">
-        <h3>Вставьте answer от гостя:</h3>
-        <textarea id="remote-answer" rows="10" cols="50"></textarea><br>
+    <!-- Обмен сигналами -->
+    <div id="signal-exchange" class="container hidden">
+        <h1>Обмен сигналами</h1>
+        <textarea id="local-desc" readonly></textarea>
+        <button id="copy-desc">Скопировать</button>
+        <textarea id="remote-answer" placeholder="Вставьте ответ"></textarea>
         <button id="apply-answer">Применить answer</button>
     </div>
 
-    <div id="game-board" style="display:none;">
+    <!-- Игровая доска -->
+    <div id="game-board" class="container hidden">
+        <h1>Угадай кто?</h1>
         <h2>Игра</h2>
         <div class="boards">
             <div class="board-section">
@@ -53,17 +59,13 @@
                 <div id="opponent-characters"></div>
             </div>
         </div>
-        <div id="controls">
-            <input type="text" id="question" placeholder="Задайте вопрос (да/нет)"/>
-            <button id="ask-btn">Спросить</button>
-            <p id="status"></p>
-        </div>
+        <div id="status"></div>
     </div>
 
-    <div id="game-result" style="display:none;">
-        <h2>Результат</h2>
+    <!-- Результаты игры -->
+    <div id="game-result" class="container hidden">
+        <h1>Результат</h1>
         <p id="result-message"></p>
-        
         <div class="boards">
             <div class="board-section">
                 <h3>Ваш персонаж</h3>
@@ -74,12 +76,9 @@
                 <div id="final-opp-char"></div>
             </div>
         </div>
-
         <button id="restart-btn">Начать заново</button>
     </div>
 
-</div>
-
-<script src="script.js"></script>
+    <script src="script.js"></script>
 </body>
 </html>
