@@ -18,7 +18,7 @@ body {
     margin-bottom: 20px;
 }
 
-#my-characters, #opponent-characters {
+#my-character-container, #opponent-characters {
     display: flex;
     flex-wrap: wrap;
     gap: 10px;
