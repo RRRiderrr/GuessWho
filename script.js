@@ -176,6 +176,8 @@ function checkIfReady() {
 }
 
 function assignCharacters() {
+    currentRoundHostFile = null;
+    currentRoundGuestFile = null;
     if (characters.length < 2) {
         console.error("В наборе слишком мало персонажей!");
         return;
@@ -258,6 +260,8 @@ function makeGuess(characterFile) {
 }
 
 function endGame(guessedCorrectly) {
+    currentRoundHostFile = hostFile;
+    currentRoundGuestFile = guestFile;
     gameOver = true;
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
@@ -277,6 +281,8 @@ function endGame(guessedCorrectly) {
 }
 
 function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
+    yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
+    oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
