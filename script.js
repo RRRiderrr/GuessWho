@@ -87,13 +87,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
-        document.getElementById('restart-btn').addEventListener('click', () => {
-    gameOver = false; // Сбрасываем состояние игры
-    if (dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'restart' })); // Уведомляем противника о новом раунде
-    }
-    startNewRound();
-});
+        document.getElementById('restart-btn').addEventListener('click', startNewRound);
 
     } catch (e) {
         console.error("Ошибка при загрузке packs.json:", e);
@@ -139,69 +133,22 @@ async function startGuest(remoteOffer) {
     document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 }
 
-function onDataChannelOpen() {
-    console.log('Data channel открыт!');
-    checkIfReady();
-}
+function startNewRound() {
+    gameOver = false;
 
-function onDataChannelMessage(event) {
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'set') {
-        chosenSet = msg.set;
-        characters = msg.chars;
-    } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
-    } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-    } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
-        endGame(guessedCorrectly);
-    } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
-    } else if (msg.type === 'restart') {
-        console.log("Получена команда начать новый раунд от противника.");
-        startNewRound();
-    }
-}
+    if (localConnection) localConnection.close();
+    if (remoteConnection) remoteConnection.close();
 
+    localConnection = null;
+    remoteConnection = null;
+    dataChannel = null;
 
-function checkIfReady() {
-    if (isHost) {
-        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-            assignCharacters();
-        }
-    }
-}
-
-function assignCharacters() {
-    if (characters.length < 2) {
-        console.error("В наборе слишком мало персонажей!");
-        return;
-    }
-
-    let hostIndex = Math.floor(Math.random() * characters.length);
-    let guestIndex = Math.floor(Math.random() * characters.length);
-    while (guestIndex === hostIndex) {
-        guestIndex = Math.floor(Math.random() * characters.length);
-    }
-
-    hostFile = characters[hostIndex];
-    guestFile = characters[guestIndex];
-
-    myCharacterFile = isHost ? hostFile : guestFile;
-
-    dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters }));
-    dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: (isHost ? guestFile : hostFile) }));
-
-    renderGameBoards();
+    document.getElementById('game-board').style.display = 'none';
+    document.getElementById('setup-screen').style.display = 'block';
+    document.getElementById('game-result').style.display = 'none';
 }
 
 function renderGameBoards() {
-    console.log("Рендеринг досок начат...");
-
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
@@ -215,131 +162,6 @@ function renderGameBoards() {
     oppBoard.innerHTML = '';
     characters.forEach(c => {
         const div = createCharCard(c);
-
-        const guessBtn = document.createElement('button');
-        guessBtn.textContent = "Выбрать персонажа";
-        guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (gameOver || div.classList.contains('disabled')) return;
-            makeGuess(c);
-        });
-
-        div.addEventListener('click', () => {
-            if (gameOver) return;
-            div.classList.toggle('disabled');
-            const btn = div.querySelector('.guess-btn');
-            btn.disabled = div.classList.contains('disabled');
-        });
-
-        div.appendChild(guessBtn);
         oppBoard.appendChild(div);
-    });
-}
-
-function createCharCard(fileName) {
-    const div = document.createElement('div');
-    div.className = 'char';
-    const img = document.createElement('img');
-    img.src = `packs/${chosenSet}/${fileName}`;
-    const p = document.createElement('p');
-    p.textContent = fileName.replace(/\..+$/, '');
-    div.appendChild(img);
-    div.appendChild(p);
-    return div;
-}
-
-function makeGuess(characterFile) {
-    if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({ type: 'guess', characterName: characterFile }));
-    }
-}
-
-function endGame(guessedCorrectly) {
-    gameOver = true;
-    const result = guessedCorrectly ? 'guesser' : 'defender';
-    const guesserIsHost = !isHost;
-
-    const yourCharFile = isHost ? hostFile : guestFile;
-    const oppCharFile = isHost ? guestFile : hostFile;
-
-    dataChannel.send(JSON.stringify({
-        type: 'guessResult',
-        result: result,
-        guesserIsHost: guesserIsHost,
-        yourCharacterFile: yourCharFile,
-        opponentCharacterFile: oppCharFile
-    }));
-
-    showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
-}
-
-function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
-    document.getElementById('game-board').style.display = 'none';
-    document.getElementById('game-result').style.display = 'block';
-
-    const iAmGuesser = (guesserIsHost === isHost);
-
-    let msg;
-    if (result === 'guesser') {
-        msg = iAmGuesser
-            ? "Вы выиграли! Вы угадали персонажа оппонента."
-            : "Вы проиграли! Оппонент угадал вашего персонажа.";
-    } else {
-        msg = iAmGuesser
-            ? "Вы проиграли! Вы не угадали персонажа оппонента."
-            : "Вы выиграли! Оппонент не угадал вашего персонажа.";
-    }
-
-    document.getElementById('result-message').textContent = msg;
-
-    const finalYourChar = document.getElementById('final-your-char');
-    finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(yourCharFile));
-
-    const finalOppChar = document.getElementById('final-opp-char');
-    finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(oppCharFile));
-}
-
-function startNewRound() {
-    console.log("Начинаем новый раунд...");
-    gameOver = false;
-
-    // Сбрасываем персонажей и разблокируем их
-    const oppBoard = document.getElementById('opponent-characters');
-    const myBoard = document.getElementById('my-character-container');
-    oppBoard.innerHTML = '';
-    myBoard.innerHTML = '';
-
-    assignCharacters(); // Заново назначаем персонажей
-}
-
-
-async function createOfferWithCompleteICE(pc) {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitForICEGatheringComplete(pc);
-}
-
-async function createAnswerWithCompleteICE(pc) {
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitForICEGatheringComplete(pc);
-}
-
-function waitForICEGatheringComplete(pc) {
-    return new Promise(resolve => {
-        if (pc.iceGatheringState === 'complete') {
-            resolve();
-        } else {
-            const checkState = () => {
-                if (pc.iceGatheringState === 'complete') {
-                    pc.removeEventListener('icegatheringstatechange', checkState);
-                    resolve();
-                }
-            };
-            pc.addEventListener('icegatheringstatechange', checkState);
-        }
     });
 }
