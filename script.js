@@ -91,6 +91,9 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('restart-btn').addEventListener('click', () => {
             startNewRound();
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'restart' }));
+            }
         });
 
     } catch (e) {
@@ -159,6 +162,8 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'guessResult') {
         gameOver = true;
         showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+    } else if (msg.type === 'restart') {
+        startNewRound();
     }
 }
 
