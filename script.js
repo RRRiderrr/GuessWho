@@ -18,9 +18,31 @@ let answerDesc = null;
 
 let hostFile = null; // Персонаж хоста
 let guestFile = null; // Персонаж гостя
+let playerName = ''; // Псевдоним игрока
+
+function showScreen(screenId) {
+    const screens = document.querySelectorAll('.container');
+    screens.forEach(screen => screen.style.display = 'none');
+    const targetScreen = document.getElementById(screenId);
+    if (targetScreen) {
+        targetScreen.style.display = 'block';
+    }
+}
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
+        showScreen('nickname-screen');
+
+        document.getElementById('start-game-btn').addEventListener('click', () => {
+            const nickname = document.getElementById('nickname').value.trim();
+            if (nickname) {
+                playerName = nickname;
+                showScreen('setup-screen');
+            } else {
+                alert('Введите ваш псевдоним!');
+            }
+        });
+
         const response = await fetch('packs.json');
         const data = await response.json();
 
@@ -34,14 +56,12 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('host-btn').addEventListener('click', () => {
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('host-setup').style.display = 'block';
+            showScreen('host-setup');
             isHost = true;
         });
 
         document.getElementById('join-btn').addEventListener('click', () => {
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('join-setup').style.display = 'block';
+            showScreen('join-setup');
             isHost = false;
         });
 
@@ -50,45 +70,45 @@ document.addEventListener('DOMContentLoaded', async () => {
             chosenSet = select.value;
             characters = JSON.parse(select.selectedOptions[0].dataset.chars);
             await startHost();
+            showScreen('signal-exchange');
         });
 
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
-            if (!remoteOffer) return;
-            await startGuest(remoteOffer);
-        });
+            if (!remoteOffer) {
+                alert('Введите предложение от хоста!');
+                return;
+            }
 
-        document.getElementById('copy-desc').addEventListener('click', () => {
-            const desc = document.getElementById('local-desc');
-            desc.select();
-            document.execCommand('copy');
-        });
-
-        document.getElementById('apply-answer').addEventListener('click', async () => {
-            const ans = document.getElementById('remote-answer').value;
-            if (!ans) return;
             try {
-                answerDesc = JSON.parse(ans);
-                if (answerDesc.type !== 'answer') {
-                    throw new Error("Неверный тип SDP, ожидается answer");
-                }
-                await localConnection.setRemoteDescription(answerDesc);
-                checkIfReady();
-            } catch (e) {
-                console.error("Ошибка при применении answer:", e);
+                const parsedOffer = JSON.parse(remoteOffer);
+                await startGuest(parsedOffer);
+                showScreen('signal-exchange');
+            } catch (error) {
+                alert('Некорректное предложение. Убедитесь, что вы вставили правильные данные.');
+                console.error("Ошибка парсинга JSON:", error);
             }
         });
 
-        document.getElementById('ask-btn').addEventListener('click', () => {
-            const question = document.getElementById('question').value.trim();
-            if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
-                dataChannel.send(JSON.stringify({ type: 'question', text: question }));
-                document.getElementById('status').textContent = "Вы спросили: " + question;
+        document.getElementById('apply-answer').addEventListener('click', async () => {
+            const answerText = document.getElementById('remote-answer').value;
+            if (!answerText) return;
+
+            try {
+                const answerDesc = JSON.parse(answerText);
+                await localConnection.setRemoteDescription(answerDesc);
+                checkIfReady();
+                showScreen('game-board');
+            } catch (error) {
+                console.error("Ошибка при обработке answer:", error);
             }
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            startNewRound();
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'restart' }));
+            }
+            restartGame();
         });
 
     } catch (e) {
@@ -103,66 +123,74 @@ async function startHost() {
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    await createOfferWithCompleteICE(localConnection);
+    const offer = await localConnection.createOffer();
+    await localConnection.setLocalDescription(offer);
 
-    document.getElementById('host-setup').style.display = 'none';
-    document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
-
-    document.getElementById('host-accept-answer').style.display = 'block';
 }
 
 async function startGuest(remoteOffer) {
-    remoteConnection = new RTCPeerConnection(rtcConfig);
+    try {
+        remoteConnection = new RTCPeerConnection(rtcConfig);
 
-    remoteConnection.ondatachannel = (event) => {
-        dataChannel = event.channel;
-        dataChannel.onopen = onDataChannelOpen;
-        dataChannel.onmessage = onDataChannelMessage;
-    };
+        remoteConnection.ondatachannel = (event) => {
+            dataChannel = event.channel;
+            dataChannel.onopen = onDataChannelOpen;
+            dataChannel.onmessage = onDataChannelMessage;
+        };
 
-    offerDesc = JSON.parse(remoteOffer);
-    if (offerDesc.type !== 'offer') {
-        console.error("Некорректный SDP, ожидается offer");
-        return;
+        await remoteConnection.setRemoteDescription(remoteOffer);
+
+        const answer = await remoteConnection.createAnswer();
+        await remoteConnection.setLocalDescription(answer);
+
+        document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+    } catch (error) {
+        console.error("Ошибка при обработке remoteOffer:", error);
     }
-    await remoteConnection.setRemoteDescription(offerDesc);
-
-    await createAnswerWithCompleteICE(remoteConnection);
-
-    document.getElementById('join-setup').style.display = 'none';
-    document.getElementById('signal-exchange').style.display = 'block';
-    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 }
 
 function onDataChannelOpen() {
-    console.log('Data channel открыт!');
+    console.log("Data channel открыт!");
     checkIfReady();
 }
 
 function onDataChannelMessage(event) {
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'set') {
-        chosenSet = msg.set;
-        characters = msg.chars;
-    } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
-    } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-    } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
-        endGame(guessedCorrectly);
-    } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+    try {
+        const msg = JSON.parse(event.data);
+
+        if (msg.type === 'set') {
+            chosenSet = msg.set;
+            characters = msg.chars;
+        } else if (msg.type === 'assign') {
+            myCharacterFile = msg.myCharacter;
+            renderGameBoards();
+        } else if (msg.type === 'restart') {
+            restartGame();
+        } else if (msg.type === 'guess') {
+            const guessedCharacter = msg.characterName;
+            const guessedCorrectly = guessedCharacter === myCharacterFile;
+            endGame(guessedCorrectly);
+        } else if (msg.type === 'guessResult') {
+            showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
+        }
+    } catch (error) {
+        console.error("Ошибка при обработке сообщения через DataChannel:", error);
     }
 }
 
+function restartGame() {
+    gameOver = false;
+    myCharacterFile = null;
+    hostFile = null;
+    guestFile = null;
+    renderGameBoards();
+    showScreen('setup-screen');
+}
+
 function checkIfReady() {
-    if (isHost) {
-        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+    if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+        if (isHost) {
             assignCharacters();
         }
     }
@@ -192,16 +220,14 @@ function assignCharacters() {
 }
 
 function renderGameBoards() {
-    console.log("Рендеринг досок начат...");
-
-    document.getElementById('signal-exchange').style.display = 'none';
-    document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
     document.getElementById('game-result').style.display = 'none';
 
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-    myContainer.appendChild(createCharCard(myCharacterFile));
+    if (myCharacterFile) {
+        myContainer.appendChild(createCharCard(myCharacterFile));
+    }
 
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
@@ -234,6 +260,8 @@ function createCharCard(fileName) {
     div.className = 'char';
     const img = document.createElement('img');
     img.src = `packs/${chosenSet}/${fileName}`;
+    img.alt = fileName;
+    img.style.borderRadius = '10px';
     const p = document.createElement('p');
     p.textContent = fileName.replace(/\..+$/, '');
     div.appendChild(img);
@@ -292,39 +320,4 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
     finalOppChar.appendChild(createCharCard(oppCharFile));
-}
-
-function startNewRound() {
-    console.log("Начинаем новый раунд...");
-    gameOver = false;
-
-    assignCharacters();
-}
-
-async function createOfferWithCompleteICE(pc) {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitForICEGatheringComplete(pc);
-}
-
-async function createAnswerWithCompleteICE(pc) {
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitForICEGatheringComplete(pc);
-}
-
-function waitForICEGatheringComplete(pc) {
-    return new Promise(resolve => {
-        if (pc.iceGatheringState === 'complete') {
-            resolve();
-        } else {
-            const checkState = () => {
-                if (pc.iceGatheringState === 'complete') {
-                    pc.removeEventListener('icegatheringstatechange', checkState);
-                    resolve();
-                }
-            };
-            pc.addEventListener('icegatheringstatechange', checkState);
-        }
-    });
 }
