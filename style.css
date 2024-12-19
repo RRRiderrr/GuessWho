@@ -1,4 +1,4 @@
-/* Основные стили страницы */
+/* Основные стили */
 body {
     font-family: Arial, sans-serif;
     margin: 0;
@@ -34,9 +34,9 @@ h2, h3 {
 /* Кнопки */
 button {
     background-color: #007bff;
-    color: #fff;
+    color: white;
     border: none;
-    padding: 10px 15px;
+    padding: 10px 20px;
     font-size: 14px;
     cursor: pointer;
     border-radius: 5px;
@@ -52,7 +52,7 @@ button:disabled {
     cursor: not-allowed;
 }
 
-/* Поля ввода текста и текстовые области */
+/* Поля ввода */
 textarea, input[type="text"] {
     width: calc(100% - 20px);
     margin: 10px 0;
@@ -62,7 +62,7 @@ textarea, input[type="text"] {
     border-radius: 5px;
 }
 
-/* Доски с персонажами */
+/* Игровая доска */
 .boards {
     display: flex;
     justify-content: space-between;
@@ -82,23 +82,20 @@ textarea, input[type="text"] {
 
 #opponent-characters {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    grid-template-columns: repeat(4, 1fr);
     gap: 15px;
     justify-items: center;
-    max-width: 100%;
-    overflow: hidden;
 }
 
 /* Карточки персонажей */
 .char {
     border: 1px solid #ccc;
-    border-radius: 8px; /* Закругление углов карточки */
+    border-radius: 8px;
     overflow: hidden;
     text-align: center;
     width: 120px;
     height: 200px;
     cursor: pointer;
-    transition: transform 0.3s, opacity 0.3s;
     position: relative;
     display: flex;
     flex-direction: column;
@@ -110,74 +107,39 @@ textarea, input[type="text"] {
 .char img {
     max-width: 100%;
     max-height: 120px;
-    display: block;
     margin: 5px 0;
-    border-radius: 8px; /* Закругление углов картинки */
+    border-radius: 5px;
 }
 
 .char p {
-    margin: 0;
     font-size: 14px;
+    margin: 0;
     font-weight: bold;
 }
 
 .char:hover {
     transform: scale(1.05);
+    transition: transform 0.3s;
 }
 
-/* Карточки персонажей, которые отмечены как "неактивные" */
+/* Неактивные карточки */
 .char.disabled {
     opacity: 0.5;
-    pointer-events: none; /* Запрещает клики по помеченным карточкам */
+    pointer-events: none;
 }
 
-/* Кнопка на карточке */
+/* Кнопки выбора */
 .char .guess-btn {
-    margin-top: auto;
     font-size: 12px;
     padding: 5px 10px;
+    margin-bottom: 5px;
     background-color: #28a745;
-    color: #fff;
+    color: white;
     border: none;
     border-radius: 5px;
-    cursor: pointer;
-    transition: background-color 0.3s;
-}
-
-.char .guess-btn:hover {
-    background-color: #218838;
 }
 
 .char .guess-btn:disabled {
     background-color: #aaa;
     cursor: not-allowed;
-}
-
-/* Статус сообщения */
-#status {
-    margin-top: 20px;
-    font-size: 16px;
-    font-weight: bold;
-    color: #555;
-    text-align: center;
-}
-
-/* Результаты игры */
-#game-result {
-    text-align: center;
-    margin-top: 20px;
-}
-
-#game-result p {
-    font-size: 18px;
-    margin: 10px 0;
-    font-weight: bold;
-}
-
-#game-result .boards {
-    margin-top: 20px;
-}
-
-.hidden {
-    display: none;
 }
