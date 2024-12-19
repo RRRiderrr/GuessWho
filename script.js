@@ -66,8 +66,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             if (!ans) return;
             try {
                 const parsedAnswer = JSON.parse(ans);
+                console.log("Получен answer:", parsedAnswer);
+
+                if (parsedAnswer.type !== 'answer') {
+                    console.error("Неверный тип SDP: ожидается 'answer'.");
+                    return;
+                }
+
                 await localConnection.setRemoteDescription(parsedAnswer);
+                console.log("Answer успешно применён.");
                 checkIfReady();
+
             } catch (e) {
                 console.error("Ошибка при применении answer:", e);
             }
@@ -99,6 +108,8 @@ async function startHost() {
 
     await createOfferWithCompleteICE(localConnection);
 
+    console.log("Offer создан:", localConnection.localDescription);
+
     document.getElementById('host-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
@@ -116,8 +127,14 @@ async function startGuest(remoteOffer) {
     };
 
     const parsedOffer = JSON.parse(remoteOffer);
+    console.log("Получен offer:", parsedOffer);
+
     await remoteConnection.setRemoteDescription(parsedOffer);
+    console.log("Remote description для гостя установлено.");
+
     await createAnswerWithCompleteICE(remoteConnection);
+
+    console.log("Answer создан:", remoteConnection.localDescription);
 
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
@@ -131,11 +148,15 @@ function onDataChannelOpen() {
 
 function onDataChannelMessage(event) {
     const msg = JSON.parse(event.data);
+    console.log("Получено сообщение:", msg);
+
     if (msg.type === 'set') {
         chosenSet = msg.set;
         characters = msg.chars;
+        console.log("Набор персонажей установлен:", characters);
     } else if (msg.type === 'assign') {
         myCharacterFile = msg.myCharacter;
+        console.log("Мой персонаж назначен:", myCharacterFile);
         renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
@@ -148,7 +169,12 @@ function onDataChannelMessage(event) {
 }
 
 function checkIfReady() {
+    console.log("Проверка готовности соединения:");
+    console.log("Remote description:", localConnection?.remoteDescription);
+    console.log("Data channel состояние:", dataChannel?.readyState);
+
     if (isHost && localConnection.remoteDescription && dataChannel.readyState === 'open') {
+        console.log("Хост готов. Назначение персонажей...");
         assignCharacters();
     }
 }
@@ -166,6 +192,9 @@ function assignCharacters() {
 
     myCharacterFile = isHost ? hostFile : guestFile;
 
+    console.log("Хост персонаж:", hostFile);
+    console.log("Гость персонаж:", guestFile);
+
     dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters }));
     dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: isHost ? guestFile : hostFile }));
 
@@ -173,6 +202,7 @@ function assignCharacters() {
 }
 
 function renderGameBoards() {
+    console.log("Отрисовка игровых досок...");
     const myContainer = document.getElementById('my-character-container');
     const oppBoard = document.getElementById('opponent-characters');
 
@@ -201,6 +231,7 @@ function createCharCard(char) {
 
 function makeGuess(character) {
     if (!gameOver) {
+        console.log("Догадка отправлена:", character);
         dataChannel.send(JSON.stringify({ type: 'guess', character }));
     }
 }
@@ -211,11 +242,11 @@ function endGame(guessedCorrectly) {
     const opponentCharacter = isHost ? guestFile : hostFile;
 
     dataChannel.send(JSON.stringify({ type: 'guessResult', result, yourCharacter, opponentCharacter }));
-
     showGameResult(result, yourCharacter, opponentCharacter);
 }
 
 function showGameResult(result, yourCharacter, opponentCharacter) {
+    console.log("Результат игры:", result);
     const resultMessage = document.getElementById('result-message');
     const yourCharContainer = document.getElementById('final-your-char');
     const oppCharContainer = document.getElementById('final-opp-char');
@@ -232,6 +263,7 @@ function showGameResult(result, yourCharacter, opponentCharacter) {
 }
 
 function startNewRound() {
+    console.log("Начало нового раунда...");
     gameOver = false;
     assignCharacters();
     renderGameBoards();
