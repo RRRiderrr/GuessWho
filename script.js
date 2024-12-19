@@ -10,14 +10,14 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false;
-let myCharacterFile = null;
+let myCharacterFile = null; // Персонаж текущего игрока
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-let hostFile = null;
-let guestFile = null;
+let hostFile = null; // Персонаж хоста
+let guestFile = null; // Персонаж гостя
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -192,6 +192,8 @@ function assignCharacters() {
 }
 
 function renderGameBoards() {
+    console.log("Рендеринг досок начат...");
+
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
@@ -210,16 +212,22 @@ function renderGameBoards() {
         guessBtn.className = 'guess-btn';
         guessBtn.addEventListener('click', (e) => {
             e.stopPropagation();
-            if (gameOver) return;
+            if (gameOver || div.classList.contains('disabled')) return;
             makeGuess(c);
         });
-        div.appendChild(guessBtn);
 
         div.addEventListener('click', () => {
             if (gameOver) return;
-            div.classList.toggle('hidden');
+            div.classList.toggle('disabled');
+            const btn = div.querySelector('.guess-btn');
+            if (div.classList.contains('disabled')) {
+                btn.disabled = true;
+            } else {
+                btn.disabled = false;
+            }
         });
 
+        div.appendChild(guessBtn);
         oppBoard.appendChild(div);
     });
 }
