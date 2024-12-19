@@ -10,30 +10,43 @@
 
 <div class="container">
     <h1>Угадай кто?</h1>
+    
+    <!-- Экран выбора роли -->
     <div id="setup-screen">
         <h2>Выберите свою роль:</h2>
         <button id="host-btn">Я хост (создать игру)</button>
         <button id="join-btn">Я участник (подключиться к игре)</button>
     </div>
 
+    <!-- Экран выбора набора для хоста -->
     <div id="host-setup" style="display:none;">
         <h2>Выберите набор персонажей:</h2>
         <select id="set-select"></select>
         <button id="host-start">Начать игру как хост</button>
     </div>
 
+    <!-- Экран ввода offer для гостя -->
     <div id="join-setup" style="display:none;">
         <h2>Вставьте offer от хоста:</h2>
         <textarea id="remote-offer" rows="10" cols="50"></textarea>
         <button id="join-start">Подключиться</button>
     </div>
 
+    <!-- Экран сигнализации (обмена offer/answer) -->
     <div id="signal-exchange" style="display:none;">
-        <h2>Скопируйте и передайте это (offer/answer) другому игроку:</h2>
+        <h2>Скопируйте и передайте это (offer или answer) другому игроку:</h2>
         <textarea id="local-desc" rows="10" cols="50"></textarea>
         <button id="copy-desc">Копировать</button>
     </div>
 
+    <!-- Блок для хоста, чтобы применить answer от гостя -->
+    <div id="host-accept-answer" style="display:none;">
+        <h3>Вставьте answer от гостя:</h3>
+        <textarea id="remote-answer" rows="10" cols="50"></textarea><br>
+        <button id="apply-answer">Применить answer</button>
+    </div>
+
+    <!-- Игровой экран -->
     <div id="game-board" style="display:none;">
         <h2>Игра</h2>
         <div id="characters"></div>
