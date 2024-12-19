@@ -63,11 +63,23 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('apply-answer').addEventListener('click', async () => {
             const ans = document.getElementById('remote-answer').value;
-            if (!ans) return;
+            if (!ans) {
+                console.error("Answer не введён.");
+                return;
+            }
             try {
                 const parsedAnswer = JSON.parse(ans);
+                console.log("Получен answer:", parsedAnswer);
+
+                if (parsedAnswer.type !== 'answer') {
+                    console.error("Неверный тип SDP: ожидается 'answer'.");
+                    return;
+                }
+
                 await localConnection.setRemoteDescription(parsedAnswer);
+                console.log("Answer успешно применён.");
                 checkIfReady();
+
             } catch (e) {
                 console.error("Ошибка при применении answer:", e);
             }
@@ -116,9 +128,14 @@ async function startGuest(remoteOffer) {
     };
 
     const parsedOffer = JSON.parse(remoteOffer);
+    console.log("Получен offer:", parsedOffer);
+
     await remoteConnection.setRemoteDescription(parsedOffer);
+    console.log("Remote description для гостя установлено.");
 
     await createAnswerWithCompleteICE(remoteConnection);
+
+    console.log("Answer сгенерирован:", remoteConnection.localDescription);
 
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
