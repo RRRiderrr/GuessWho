@@ -1,4 +1,4 @@
-// Конфигурация для RTCPeerConnection c STUN-сервером
+// Конфигурация для RTCPeerConnection (используем публичный STUN)
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' }
@@ -13,6 +13,8 @@ let characters = [];
 let isHost = false; 
 let offerDesc = null;
 let answerDesc = null;
+let localCandidatesGathered = false;
+let remoteCandidatesGathered = false;
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -62,9 +64,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         document.getElementById('apply-answer').addEventListener('click', async () => {
             const ans = document.getElementById('remote-answer').value;
             if (!ans) return;
-            answerDesc = JSON.parse(ans);
-            await localConnection.setRemoteDescription(answerDesc);
-            checkIfReady();
+            try {
+                answerDesc = JSON.parse(ans);
+                if (answerDesc.type !== 'answer') {
+                    throw new Error("Неверный тип SDP, ожидается answer");
+                }
+                await localConnection.setRemoteDescription(answerDesc);
+                checkIfReady();
+            } catch (e) {
+                console.error("Ошибка при применении answer:", e);
+            }
         });
 
         document.getElementById('ask-btn').addEventListener('click', () => {
@@ -86,8 +95,8 @@ async function startHost() {
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    const offer = await localConnection.createOffer();
-    await localConnection.setLocalDescription(offer);
+    // Ждём, пока ICE кандидаты будут собраны (icegatheringstate = complete)
+    await createOfferWithCompleteICE(localConnection);
 
     document.getElementById('host-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
@@ -95,10 +104,6 @@ async function startHost() {
 
     // Показываем блок для вставки answer
     document.getElementById('host-accept-answer').style.display = 'block';
-
-    localConnection.onicecandidate = (e) => {
-        // ждем финала сборки кандидатов
-    };
 }
 
 async function startGuest(remoteOffer) {
@@ -111,33 +116,23 @@ async function startGuest(remoteOffer) {
     };
 
     offerDesc = JSON.parse(remoteOffer);
+    if (offerDesc.type !== 'offer') {
+        console.error("Получен некорректный SDP, ожидается offer");
+        return;
+    }
     await remoteConnection.setRemoteDescription(offerDesc);
-    const answer = await remoteConnection.createAnswer();
-    await remoteConnection.setLocalDescription(answer);
+
+    // Создаём answer и ждём пока ICE кандидаты будут собраны
+    await createAnswerWithCompleteICE(remoteConnection);
 
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
-
-    remoteConnection.onicecandidate = (e) => {
-        // ждем финала сборки кандидатов
-    };
 }
 
 function onDataChannelOpen() {
     console.log('Data channel открыт!');
     checkIfReady();
-}
-
-function checkIfReady() {
-    // Для хоста: проверить что у него установлен answer и канал открыт
-    if (isHost && localConnection && localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-        // Отправляем информацию о наборе
-        dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
-        transitionToGame();
-    } else if (!isHost && dataChannel && dataChannel.readyState === 'open') {
-        // Гость ждёт набор от хоста. Когда получит, перейдет к игре.
-    }
 }
 
 function onDataChannelMessage(event) {
@@ -149,7 +144,7 @@ function onDataChannelMessage(event) {
         renderCharacters();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-        // Можно добавить логику ответа
+        // Здесь можно добавить логику ответа
     }
 }
 
@@ -174,4 +169,48 @@ function transitionToGame() {
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
+}
+
+function checkIfReady() {
+    if (isHost) {
+        // Хост готов, когда есть remoteDescription (answer) и dataChannel открыт
+        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+            // Отправляем инфу о наборе
+            dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
+            transitionToGame();
+        }
+    } else {
+        // Гость готов, когда dataChannel открыт и он получил set
+        // Переход в игру произойдёт после получения type:'set'
+    }
+}
+
+async function createOfferWithCompleteICE(pc) {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+
+    await waitForICEGatheringComplete(pc);
+}
+
+async function createAnswerWithCompleteICE(pc) {
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+
+    await waitForICEGatheringComplete(pc);
+}
+
+function waitForICEGatheringComplete(pc) {
+    return new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') {
+            resolve();
+        } else {
+            const checkState = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', checkState);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', checkState);
+        }
+    });
 }
