@@ -1,4 +1,4 @@
-// Конфигурация для RTCPeerConnection (публичный STUN для примера)
+// Конфигурация для RTCPeerConnection (используем публичный STUN)
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' }
@@ -12,10 +12,8 @@ let chosenSet = null;
 let characters = [];
 let isHost = false; 
 let myCharacter = null;        // Секретный персонаж текущего игрока
-let opponentCharacter = null;  // Будет известен только в конце игры
 let gameOver = false;
 
-// Состояние сигнализации
 let offerDesc = null;
 let answerDesc = null;
 
@@ -81,7 +79,7 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('ask-btn').addEventListener('click', () => {
             const question = document.getElementById('question').value.trim();
-            if (question && dataChannel && dataChannel.readyState === 'open') {
+            if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
                 dataChannel.send(JSON.stringify({type:'question', text:question}));
                 document.getElementById('status').textContent = "Вы спросили: " + question;
             }
@@ -138,12 +136,11 @@ function onDataChannelOpen() {
 function onDataChannelMessage(event) {
     const msg = JSON.parse(event.data);
     if (msg.type === 'set') {
-        // Гость получил набор
+        // Гость получает набор
         chosenSet = msg.set;
         characters = msg.chars;
-        // После получения набора, хост пришлёт assign
     } else if (msg.type === 'assign') {
-        // Установить myCharacter для гостя
+        // Гость получает своего скрытого персонажа
         myCharacter = msg.myCharacter;
         renderGameBoards();
     } else if (msg.type === 'question') {
@@ -158,22 +155,20 @@ function onDataChannelMessage(event) {
             endGame(false, msg.characterName);
         }
     } else if (msg.type === 'guessResult') {
-        // Получаем результат угадывания
+        // Результат угадывания
         showGameResult(msg.result, msg.yourCharacter, msg.myCharacter);
     }
 }
 
 function checkIfReady() {
     if (isHost) {
-        // Хост готов после установки remoteDescription(answer) и открытого канала
+        // Хост готов после установки answer и открытого канала
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-            // Теперь хост выберет случайно персонажей
             assignCharacters();
         }
     } else {
-        // Гость готов после установки своего answer и открытия канала
-        // Но персонаж назначается хостом, гость ждёт assign
-        // Когда получит assign -> renderGameBoards()
+        // Гость готов после установки answer и открытого канала,
+        // но ждет assign от хоста, который вызовет renderGameBoards().
     }
 }
 
@@ -190,8 +185,7 @@ function assignCharacters() {
     // Отправить гостю набор и assign
     dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
     dataChannel.send(JSON.stringify({type:'assign', myCharacter: guestSecret}));
-    
-    // Отрисовать поля для хоста
+
     renderGameBoards();
 }
 
@@ -251,105 +245,22 @@ function renderGameBoards() {
 }
 
 function makeGuess(characterName) {
-    // Отправляем оппоненту попытку угадывания
-    dataChannel.send(JSON.stringify({type:'guess', characterName: characterName}));
-    // Ждём ответа guessResult
-    // Если ответ не придёт (плохая сеть), игра зависнет, 
-    // в реальном приложении стоит добавить таймаут/обработку ошибок.
+    if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
+        dataChannel.send(JSON.stringify({type:'guess', characterName: characterName}));
+    }
 }
 
 function endGame(guessedCorrectly, guessedCharacter) {
-    // Кто отправляет guessResult: тот, кто получил guess
-    // Если угадали правильно, соперник выиграл
-    // Если угадали неправильно, текущий игрок выиграл
-    let result = guessedCorrectly ? 'correct' : 'wrong';
-    // yourCharacter - персонаж того, кто отгадывал
-    // myCharacter - персонаж текущего (того, кто ответ отправляет)
-    // Для этого нам нужно знать какой персонаж был у оппонента.
-    // Но оппонент нам не известен. Мы знаем только myCharacter (наш)
-    // и знаем guessedCharacter (которого угадал оппонент),
-    // но нам нужен персонаж оппонента - это его `myCharacter`.
-    // Мы не знаем myCharacter оппонента. 
-    // Но оппонент знает свой myCharacter.
-    // Решение: перешлём друг другу свои персонажи.
-
-    // Решаем так: у нас только myCharacter (наш скрытый) и мы знаем, что оппонент - тот, кто угадывал - это "yourCharacter" в сообщении.
-    // Но "yourCharacter" мы не знаем. Мы должны отдать оппоненту его персонаж, который он уже знает (myCharacter у него), но чтобы отобразить на его стороне, передадим просто обе стороны.
-    // Поскольку каждый знает свой myCharacter, мы просто передадим наш myCharacter и попросим оппонента передать свой. 
-    // Но оппонент уже сделал guess, значит он отсылает запрос, мы отвечаем. Мы можем просто отправить обоим:
-    // - myCharacter: наш скрытый персонаж
-    // - yourCharacter: guessedCharacter - это тот, кого оппонент назвал (а это и есть предполагаемый персонаж оппонента?)
-    // Важно: Оппонент пытается угадать наш персонаж. guessedCharacter - это его догадка о нашем персонаже. 
-    // Он либо совпал с myCharacter (guess correct), либо нет.
-    // Our character: myCharacter
-    // Opponent's character: нам нужно знать, какой у оппонента был персонаж. Но мы его не знаем.
-    // Нам нужно было заранее хранить секрет каждого. Но мы это не делали.
-
-    // Дополним логику assign:
-    // При assign хост отправляет только myCharacter для гостя.
-    // Хост знает hostSecret, guestSecret.
-    // Гость знает только guestSecret (как myCharacter).
-    // Хост знает оба, т.к. он их выбрал.
-    // Чтобы знать персонаж оппонента, нужно чтобы каждый знал и свой, и оппонента.
-    // Но это раскрывает секрет. Нам нужно только в конце раскрыть обоим.
-    // Решение: Хост знает оба и может их отослать при окончании игры. 
-    // Но, гость при угадывании просит результат у хоста. Что если при конце игры всегда будет отправляться guessResult с обоими персонажами?
-
-    // Упростим:
-    // - Хост при assign будет также хранить guestSecret и hostSecret.
-    // - Гость знает только guestSecret. Но при завершении через guessResult хост может отправить обе стороны.
-    // Если гость угадал, это приходит на хост, хост формирует guessResult.
-    // Если гость ошибся, тоже хост формирует guessResult.
-    // Аналогично, если хост угадывает (отправляет guess), guest формирует guessResult и посылает обратно. Но guest не знает hostSecret.
-    // Значит guest тоже должен знать оба персонажа? Тогда пропадет загадка.
-
-    // Нужно, чтобы при завершении игры обе стороны получили информацию о двух персонажах. 
-    // Решение: При assign хост отправляет guest:
-    // {type:'assign', myCharacter: guestSecret, opponentCharacter: hostSecret}
-    // Гость узнает свой персонаж (guestSecret) и знает имя персонажа хоста (hostSecret), но не знает какой именно из набора это был (у него и так список один).
-    // Это раскрывает секрет сразу. Но нам сказано, что нужно отгадать. Знание имени оппонента заранее убьет игру.
-    // Суть "угадай кто" - игрок не знает персонажа оппонента.
-
-    // Тогда при окончании игры, отвечающий на guess раскрывает обоих персонажей. У него есть мой (myCharacter) и он получил guessedCharacter. 
-    // Но guessedCharacter - это просто догадка. Он не знает персонажа оппонента. Нужно хранить в хосте как глобально hostSecret и guestSecret.
-    // Аналогично, у гостя - guestSecret известен, но не hostSecret.
-
-    // Лучший вариант: хранить у обоих игроков их собственный персонаж (myCharacter) и у хоста - два персонажа (hostSecret, guestSecret).
-    // Когда гость получает assign, он не узнает hostSecret. Но при завершении игры, если guessResult формирует хост, он может сообщить оба секретных персонажа.
-    // Если guessResult формирует гость (когда хост угадывает), гость не знает hostSecret... Придётся нарушить условие и сделать так, что guess всегда идёт через хоста.
-
-    // Упростим предположение: Предположим, что хост всегда формирует endGame (в реальной игре логика сложнее).
-    // Для демонстрации: мы просто при assign отправим обе стороны (myCharacter для гостя, hostCharacter для хоста),
-    // но guestCharacter не сообщает хосту. Тогда:
-    // При assign:
-    //  - Хост знает: hostSecret, guestSecret
-    //  - Гость знает: myCharacter=guestSecret, but not hostSecret
-    // При guess:
-    //  - Если guess идет от гостя, хост знает оба и отправит guessResult с обоими.
-    //  - Если guess идет от хоста, гость не знает hostSecret, значит не сможет отправить оба. Тогда гость просто отправляет свой myCharacter и guessedCharacter. 
-    //     Хосту будет достаточно, чтобы показать результат. Хост тогда может догадаться, кто у него был. 
-    // Однако пользователь хотел видеть в конце оба персонажа. Тогда давайте хост будет отправлять assign с `opponentUnknown:true` и при guessResult добавить оба из памяти.
-
-    // В целях упрощения сейчас:
-    // Хост знает: hostSecret, guestSecret (глобально сохраним)
-    // Гость знает только свой guestSecret.
-    // При guessResult хост или гость сообщает:
-    // yourCharacter - персонаж гадавшего
-    // myCharacter - персонаж отвечающего
-    // Таким образом, у каждой стороны будет по одному персонажу. Не идеально, но хоть что-то.
-
-    // Для полноты выполним требование "В конце должно показать какой персонаж у кого был":
-    // Сделаем так: Хост при assign также отправит guestSecret и hostSecret. Гость узнает оба, но мы просто не отображаем оппоненту этот факт до конца (или не мешаем?). 
-    // Считаем, что это демо.
-
+    gameOver = true;
+    const result = guessedCorrectly ? 'correct' : 'wrong';
+    // Отправим guessResult
+    // yourCharacter - мой персонаж, myCharacter - guessedCharacter (персонаж, которого назвал оппонент)
     dataChannel.send(JSON.stringify({
         type: 'guessResult',
         result: result,
-        yourCharacter: myCharacter,     // мой персонаж
-        myCharacter: guessedCharacter   // персонаж, который назвал оппонент (его мы считаем оппонентским)
+        yourCharacter: myCharacter,
+        myCharacter: guessedCharacter
     }));
-    
-    gameOver = true;
 }
 
 function showGameResult(result, yourChar, oppChar) {
@@ -366,14 +277,12 @@ function showGameResult(result, yourChar, oppChar) {
 async function createOfferWithCompleteICE(pc) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
-
     await waitForICEGatheringComplete(pc);
 }
 
 async function createAnswerWithCompleteICE(pc) {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
-
     await waitForICEGatheringComplete(pc);
 }
 
