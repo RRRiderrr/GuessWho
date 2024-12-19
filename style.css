@@ -2,12 +2,13 @@ body {
     font-family: Arial, sans-serif;
     margin: 0;
     padding: 0;
-    background-color: #f4f4f4;
+    background-color: #f0f0f0;
 }
 
 .container {
     display: none;
     padding: 20px;
+    box-sizing: border-box;
 }
 
 .container.active {
@@ -18,7 +19,7 @@ button {
     background-color: #4CAF50;
     color: white;
     padding: 10px 20px;
-    margin: 10px 0;
+    margin: 10px 5px;
     border: none;
     border-radius: 5px;
     cursor: pointer;
@@ -28,6 +29,11 @@ button {
 
 button:hover {
     background-color: #45a049;
+}
+
+button.disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
 }
 
 .char {
@@ -42,21 +48,23 @@ button:hover {
     object-fit: cover;
     border-radius: 10px;
     border: 2px solid #ddd;
+    box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
 }
 
 .char p {
     margin: 5px 0 0;
     font-size: 14px;
+    color: #333;
 }
 
 .guess-btn {
-    margin-top: 5px;
+    margin-top: 10px;
     background-color: #007BFF;
     color: white;
     padding: 5px 10px;
     border: none;
-    border-radius: 3px;
-    font-size: 12px;
+    border-radius: 5px;
+    font-size: 14px;
     cursor: pointer;
 }
 
@@ -64,10 +72,15 @@ button:hover {
     background-color: #0056b3;
 }
 
+.guess-btn:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
 #opponent-characters {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
-    gap: 15px;
+    gap: 10px;
     justify-content: center;
     padding: 20px;
 }
@@ -76,6 +89,7 @@ button:hover {
     display: flex;
     flex-direction: column;
     align-items: center;
+    margin-top: 20px;
 }
 
 #game-result {
@@ -87,14 +101,30 @@ button:hover {
 }
 
 #game-result .char {
-    margin-bottom: 20px;
+    margin-bottom: 15px;
 }
 
-#game-result button {
+input[type="text"] {
+    padding: 10px;
+    width: 100%;
+    box-sizing: border-box;
+    margin: 10px 0;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+}
+
+button#restart-btn {
     background-color: #FF5733;
+    color: white;
 }
 
-button.disabled {
-    background-color: #cccccc;
-    cursor: not-allowed;
+button#restart-btn:hover {
+    background-color: #e74c3c;
+}
+
+#status {
+    margin-top: 20px;
+    font-size: 16px;
+    color: #333;
+    text-align: center;
 }
