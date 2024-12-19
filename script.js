@@ -1,4 +1,3 @@
-// Конфигурация для RTCPeerConnection
 const rtcConfig = {
     iceServers: [
         { urls: 'stun:stun.l.google.com:19302' }
@@ -89,7 +88,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            location.reload();
+            // Рематч без разрыва соединения и без перезагрузки
+            startNewRound();
         });
 
     } catch (e) {
@@ -152,13 +152,10 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
     } else if (msg.type === 'guess') {
-        // Я получил guess, значит я defender
         const guessedCharacter = msg.characterName;
         const guessedCorrectly = (guessedCharacter === myCharacter);
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
-        // msg.result: 'guesser' или 'defender'
-        // msg.guesserIsHost: true/false
         gameOver = true;
         showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacter, msg.myCharacter);
     }
@@ -191,6 +188,7 @@ function renderGameBoards() {
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
+    document.getElementById('game-result').style.display = 'none';
 
     // Мой персонаж
     const myContainer = document.getElementById('my-character-container');
@@ -227,7 +225,10 @@ function createCharCard(charName) {
     div.className = 'char';
     const img = document.createElement('img');
     const cFile = characters.find(c => c.replace(/\..+$/, '') === charName);
-    img.src = `packs/${chosenSet}/${cFile}`;
+    if (!cFile) {
+        console.warn("Не найден файл для персонажа:", charName);
+    }
+    img.src = cFile ? `packs/${chosenSet}/${cFile}` : '';
     const p = document.createElement('p');
     p.textContent = charName;
     div.appendChild(img);
@@ -244,10 +245,8 @@ function makeGuess(characterName) {
 function endGame(guessedCorrectly) {
     gameOver = true;
     // Я - defender
-    // guessedCorrectly = true => guesser выиграл
-    // guessedCorrectly = false => defender выиграл
     const result = guessedCorrectly ? 'guesser' : 'defender';
-    const guesserIsHost = !isHost; // Если я defender, guesser - противоположный игрок
+    const guesserIsHost = !isHost;
 
     const yourChar = isHost ? hostSecret : guestSecret;
     const oppChar = isHost ? guestSecret : hostSecret;
@@ -268,7 +267,6 @@ function showGameResult(result, guesserIsHost, yourChar, oppChar) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
-    // Определяем, я угадывавший или нет
     const iAmGuesser = (guesserIsHost === isHost);
 
     let msg;
@@ -297,6 +295,12 @@ function showGameResult(result, guesserIsHost, yourChar, oppChar) {
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
     finalOppChar.appendChild(createCharCard(oppChar));
+}
+
+function startNewRound() {
+    // Без разрыва соединения, переигрываем раунд:
+    gameOver = false;
+    assignCharacters();
 }
 
 async function createOfferWithCompleteICE(pc) {
