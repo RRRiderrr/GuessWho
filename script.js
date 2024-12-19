@@ -10,14 +10,11 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false;
-let myCharacterFile = null;
+let myCharacterFile = null; // Персонаж текущего игрока
 let gameOver = false;
 
-let offerDesc = null;
-let answerDesc = null;
-
-let hostFile = null;
-let guestFile = null;
+let hostFile = null; // Персонаж хоста
+let guestFile = null; // Персонаж гостя
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -68,10 +65,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ans = document.getElementById('remote-answer').value;
             if (!ans) return;
             try {
-                answerDesc = JSON.parse(ans);
-                if (answerDesc.type !== 'answer') {
-                    throw new Error("Неверный тип SDP, ожидается answer");
-                }
+                const answerDesc = JSON.parse(ans);
                 await localConnection.setRemoteDescription(answerDesc);
                 checkIfReady();
             } catch (e) {
@@ -103,7 +97,8 @@ async function startHost() {
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    await createOfferWithCompleteICE(localConnection);
+    const offer = await localConnection.createOffer();
+    await localConnection.setLocalDescription(offer);
 
     document.getElementById('host-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
@@ -121,14 +116,11 @@ async function startGuest(remoteOffer) {
         dataChannel.onmessage = onDataChannelMessage;
     };
 
-    offerDesc = JSON.parse(remoteOffer);
-    if (offerDesc.type !== 'offer') {
-        console.error("Некорректный SDP, ожидается offer");
-        return;
-    }
+    const offerDesc = JSON.parse(remoteOffer);
     await remoteConnection.setRemoteDescription(offerDesc);
 
-    await createAnswerWithCompleteICE(remoteConnection);
+    const answer = await remoteConnection.createAnswer();
+    await remoteConnection.setLocalDescription(answer);
 
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
@@ -174,51 +166,32 @@ function assignCharacters() {
         return;
     }
 
-    let hostIndex = Math.floor(Math.random() * characters.length);
-    let guestIndex = Math.floor(Math.random() * characters.length);
-    while (guestIndex === hostIndex) {
-        guestIndex = Math.floor(Math.random() * characters.length);
-    }
+    const hostIndex = Math.floor(Math.random() * characters.length);
+    const guestIndex = (hostIndex + 1) % characters.length;
 
     hostFile = characters[hostIndex];
     guestFile = characters[guestIndex];
-
     myCharacterFile = isHost ? hostFile : guestFile;
 
     dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters }));
-    dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: (isHost ? guestFile : hostFile) }));
+    dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: isHost ? guestFile : hostFile }));
 
     renderGameBoards();
 }
 
 function renderGameBoards() {
-    document.getElementById('signal-exchange').style.display = 'none';
-    document.getElementById('host-accept-answer').style.display = 'none';
-    document.getElementById('game-board').style.display = 'block';
-    document.getElementById('game-result').style.display = 'none';
-
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
     myContainer.appendChild(createCharCard(myCharacterFile));
 
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
-    characters.forEach(c => {
-        const div = createCharCard(c);
-        const guessBtn = document.createElement('button');
-        guessBtn.textContent = "Выбрать персонажа";
-        guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (gameOver) return;
-            makeGuess(c);
-        });
-        div.appendChild(guessBtn);
-
-        div.addEventListener('click', () => {
-            if (gameOver) return;
-            div.classList.toggle('hidden');
-        });
+    characters.forEach((char) => {
+        const div = createCharCard(char);
+        const button = document.createElement('button');
+        button.textContent = 'Выбрать персонажа';
+        button.onclick = () => makeGuess(char);
+        div.appendChild(button);
 
         oppBoard.appendChild(div);
     });
@@ -226,7 +199,7 @@ function renderGameBoards() {
 
 function createCharCard(fileName) {
     const div = document.createElement('div');
-    div.className = 'char';
+    div.classList.add('char');
     const img = document.createElement('img');
     img.src = `packs/${chosenSet}/${fileName}`;
     const p = document.createElement('p');
@@ -237,7 +210,7 @@ function createCharCard(fileName) {
 }
 
 function makeGuess(characterFile) {
-    if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
+    if (!gameOver && dataChannel.readyState === 'open') {
         dataChannel.send(JSON.stringify({ type: 'guess', characterName: characterFile }));
     }
 }
@@ -247,62 +220,26 @@ function endGame(guessedCorrectly) {
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
 
-    const yourCharFile = isHost ? hostFile : guestFile;
-    const oppCharFile = isHost ? guestFile : hostFile;
-
     dataChannel.send(JSON.stringify({
         type: 'guessResult',
-        result: result,
-        guesserIsHost: guesserIsHost,
-        yourCharacterFile: yourCharFile,
-        opponentCharacterFile: oppCharFile
+        result,
+        guesserIsHost,
+        yourCharacterFile: isHost ? hostFile : guestFile,
+        opponentCharacterFile: isHost ? guestFile : hostFile
     }));
 
-    showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
+    showGameResult(result, guesserIsHost, isHost ? hostFile : guestFile, isHost ? guestFile : hostFile);
 }
 
-function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
-    document.getElementById('game-board').style.display = 'none';
-    document.getElementById('game-result').style.display = 'block';
+function showGameResult(result, guesserIsHost, yourChar, oppChar) {
+    const resultDiv = document.getElementById('game-result');
+    resultDiv.style.display = 'block';
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(yourCharFile));
+    finalYourChar.appendChild(createCharCard(yourChar));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(oppCharFile));
-}
-
-function startNewRound() {
-    gameOver = false;
-    assignCharacters();
-}
-
-async function createOfferWithCompleteICE(pc) {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    await waitForICEGatheringComplete(pc);
-}
-
-async function createAnswerWithCompleteICE(pc) {
-    const answer = await pc.createAnswer();
-    await pc.setLocalDescription(answer);
-    await waitForICEGatheringComplete(pc);
-}
-
-function waitForICEGatheringComplete(pc) {
-    return new Promise(resolve => {
-        if (pc.iceGatheringState === 'complete') {
-            resolve();
-        } else {
-            const checkState = () => {
-                if (pc.iceGatheringState === 'complete') {
-                    pc.removeEventListener('icegatheringstatechange', checkState);
-                    resolve();
-                }
-            };
-            pc.addEventListener('icegatheringstatechange', checkState);
-        }
-    });
+    finalOppChar.appendChild(createCharCard(oppChar));
 }
