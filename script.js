@@ -63,16 +63,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('apply-answer').addEventListener('click', async () => {
             const ans = document.getElementById('remote-answer').value;
-            if (!ans) return;
+            if (!ans) {
+                console.warn("Answer не введён.");
+                return;
+            }
             try {
                 const parsedAnswer = JSON.parse(ans);
                 if (parsedAnswer.type !== 'answer') {
                     console.error("Неверный тип SDP, ожидается 'answer'.");
                     return;
                 }
-
                 await localConnection.setRemoteDescription(parsedAnswer);
                 console.log("Answer применён.");
+                // После применения answer сразу проверяем готовность
                 checkIfReady();
             } catch (e) {
                 console.error("Ошибка при применении answer:", e);
@@ -141,6 +144,7 @@ function onDataChannelMessage(event) {
         characters = msg.chars;
     } else if (msg.type === 'assign') {
         myCharacterFile = msg.myCharacter;
+        console.log("Мой персонаж назначен:", myCharacterFile);
         renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
@@ -153,12 +157,20 @@ function onDataChannelMessage(event) {
 }
 
 function checkIfReady() {
-    if (isHost && localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-        assignCharacters();
+    console.log("Проверка готовности соединения...");
+    if (isHost) {
+        if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+            console.log("Хост готов. Назначаем персонажей...");
+            assignCharacters();
+        }
+    } else {
+        // Гость просто ждёт assign от хоста
+        console.log("Гость ждёт assign от хоста.");
     }
 }
 
 function assignCharacters() {
+    console.log("Назначение персонажей...");
     let hostIndex = Math.floor(Math.random() * characters.length);
     let guestIndex = Math.floor(Math.random() * characters.length);
     while (hostIndex === guestIndex) {
@@ -169,12 +181,16 @@ function assignCharacters() {
     guestFile = characters[guestIndex];
 
     myCharacterFile = isHost ? hostFile : guestFile;
+
+    console.log("Хост персонаж:", hostFile, "| Гость персонаж:", guestFile);
+
     dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters }));
     dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: isHost ? guestFile : hostFile }));
     renderGameBoards();
 }
 
 function renderGameBoards() {
+    console.log("Отрисовка досок. Мой персонаж:", myCharacterFile);
     const myContainer = document.getElementById('my-character-container');
     const oppBoard = document.getElementById('opponent-characters');
     myContainer.innerHTML = '';
@@ -202,11 +218,14 @@ function createCharCard(char) {
 
 function makeGuess(character) {
     if (!gameOver) {
+        console.log("Посылаем догадку:", character);
         dataChannel.send(JSON.stringify({ type: 'guess', character }));
     }
 }
 
 function endGame(guessedCorrectly) {
+    console.log("Игра окончена. Угадано?", guessedCorrectly);
+    gameOver = true;
     const result = guessedCorrectly ? "win" : "lose";
     const yourCharacter = myCharacterFile;
     const opponentCharacter = isHost ? guestFile : hostFile;
@@ -216,6 +235,7 @@ function endGame(guessedCorrectly) {
 }
 
 function showGameResult(result, yourCharacter, opponentCharacter) {
+    console.log("Отображение результатов. Результат:", result);
     const resultMessage = document.getElementById('result-message');
     const yourCharContainer = document.getElementById('final-your-char');
     const oppCharContainer = document.getElementById('final-opp-char');
@@ -232,6 +252,7 @@ function showGameResult(result, yourCharacter, opponentCharacter) {
 }
 
 function startNewRound() {
+    console.log("Начинаем новый раунд.");
     gameOver = false;
     assignCharacters();
     renderGameBoards();
@@ -241,16 +262,18 @@ async function createOfferWithCompleteICE(pc) {
     const offer = await pc.createOffer();
     await pc.setLocalDescription(offer);
     await waitForICEGatheringComplete(pc);
+    console.log("Offer готов:", pc.localDescription);
 }
 
 async function createAnswerWithCompleteICE(pc) {
     const answer = await pc.createAnswer();
     await pc.setLocalDescription(answer);
     await waitForICEGatheringComplete(pc);
+    console.log("Answer готов:", pc.localDescription);
 }
 
 function waitForICEGatheringComplete(pc) {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
         if (pc.iceGatheringState === 'complete') {
             resolve();
         } else {
