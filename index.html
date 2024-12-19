@@ -49,12 +49,29 @@
     <!-- Игровой экран -->
     <div id="game-board" style="display:none;">
         <h2>Игра</h2>
-        <div id="characters"></div>
+        <div class="boards">
+            <div class="board-section">
+                <h3>Мои персонажи</h3>
+                <div id="my-characters"></div>
+            </div>
+            <div class="board-section">
+                <h3>Персонажи оппонента</h3>
+                <div id="opponent-characters"></div>
+            </div>
+        </div>
         <div id="controls">
             <input type="text" id="question" placeholder="Задайте вопрос (да/нет)"/>
             <button id="ask-btn">Спросить</button>
             <p id="status"></p>
         </div>
+    </div>
+
+    <!-- Окно результата игры -->
+    <div id="game-result" style="display:none;">
+        <h2>Результат</h2>
+        <p id="result-message"></p>
+        <p>Ваш персонаж: <span id="your-character"></span></p>
+        <p>Персонаж оппонента: <span id="opponent-character"></span></p>
     </div>
 
 </div>
