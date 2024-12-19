@@ -85,9 +85,19 @@ document.addEventListener('DOMContentLoaded', async () => {
         // Обработка начала игры клиентом
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
-            if (!remoteOffer) return;
-            await startGuest(remoteOffer);
-            showScreen('signal-exchange');
+            if (!remoteOffer) {
+                alert('Введите предложение от хоста!');
+                return;
+            }
+
+            try {
+                const parsedOffer = JSON.parse(remoteOffer);
+                await startGuest(parsedOffer);
+                showScreen('signal-exchange');
+            } catch (error) {
+                alert('Некорректное предложение. Убедитесь, что вы вставили правильные данные.');
+                console.error("Ошибка парсинга JSON:", error);
+            }
         });
 
         // Применение answer
@@ -130,21 +140,24 @@ async function startHost() {
 }
 
 async function startGuest(remoteOffer) {
-    remoteConnection = new RTCPeerConnection(rtcConfig);
+    try {
+        remoteConnection = new RTCPeerConnection(rtcConfig);
 
-    remoteConnection.ondatachannel = (event) => {
-        dataChannel = event.channel;
-        dataChannel.onopen = onDataChannelOpen;
-        dataChannel.onmessage = onDataChannelMessage;
-    };
+        remoteConnection.ondatachannel = (event) => {
+            dataChannel = event.channel;
+            dataChannel.onopen = onDataChannelOpen;
+            dataChannel.onmessage = onDataChannelMessage;
+        };
 
-    const offerDesc = JSON.parse(remoteOffer);
-    await remoteConnection.setRemoteDescription(offerDesc);
+        await remoteConnection.setRemoteDescription(remoteOffer);
 
-    const answer = await remoteConnection.createAnswer();
-    await remoteConnection.setLocalDescription(answer);
+        const answer = await remoteConnection.createAnswer();
+        await remoteConnection.setLocalDescription(answer);
 
-    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+        document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+    } catch (error) {
+        console.error("Ошибка при обработке remoteOffer:", error);
+    }
 }
 
 function onDataChannelOpen() {
