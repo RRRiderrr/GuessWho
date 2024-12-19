@@ -163,28 +163,6 @@ function onDataChannelMessage(event) {
         startNewRound();
     }
 }
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'set') {
-        chosenSet = msg.set;
-        characters = msg.chars;
-        currentRoundHostFile = msg.hostFile;
-        currentRoundGuestFile = msg.guestFile;
-    } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
-    } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-    } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
-        endGame(guessedCorrectly);
-    } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.currentRoundHostFile, msg.currentRoundGuestFile);
-    } else if (msg.type === 'restart') {
-        startNewRound();
-    }
-
 
 function checkIfReady() {
     if (isHost) {
@@ -226,28 +204,6 @@ function assignCharacters() {
         guestFile: currentRoundGuestFile
     }));
 
-    renderGameBoards();
-}
-    if (characters.length < 2) {
-        console.error("В наборе слишком мало персонажей!");
-        return;
-    }
-
-    let hostIndex = Math.floor(Math.random() * characters.length);
-    let guestIndex = Math.floor(Math.random() * characters.length);
-    while (guestIndex === hostIndex) {
-        guestIndex = Math.floor(Math.random() * characters.length);
-    }
-
-    currentRoundHostFile = characters[hostIndex];
-    currentRoundGuestFile = characters[guestIndex];
-
-    hostFile = currentRoundHostFile;
-    guestFile = currentRoundGuestFile;
-
-    myCharacterFile = isHost ? hostFile : guestFile;
-
-    dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters, hostFile: currentRoundHostFile, guestFile: currentRoundGuestFile }));
     renderGameBoards();
 }
 
