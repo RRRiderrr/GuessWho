@@ -10,16 +10,16 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false;
-let myCharacterFile = null; // Персонаж текущего игрока
+let myCharacterFile = null;
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-let hostFile = null; // Персонаж хоста
-let guestFile = null; // Персонаж гостя
-let currentRoundHostFile = null; // Персонаж хоста в текущем раунде
-let currentRoundGuestFile = null; // Персонаж гостя в текущем раунде
+let hostFile = null;
+let guestFile = null;
+let currentRoundHostFile = null;
+let currentRoundGuestFile = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -78,14 +78,6 @@ document.addEventListener('DOMContentLoaded', async () => {
                 checkIfReady();
             } catch (e) {
                 console.error("Ошибка при применении answer:", e);
-            }
-        });
-
-        document.getElementById('ask-btn').addEventListener('click', () => {
-            const question = document.getElementById('question').value.trim();
-            if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
-                dataChannel.send(JSON.stringify({ type: 'question', text: question }));
-                document.getElementById('status').textContent = "Вы спросили: " + question;
             }
         });
 
@@ -168,26 +160,6 @@ function onDataChannelMessage(event) {
         startNewRound();
     }
 }
-    const msg = JSON.parse(event.data);
-    if (msg.type === 'set') {
-        chosenSet = msg.set;
-        characters = msg.chars;
-    } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
-    } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
-    } else if (msg.type === 'guess') {
-        const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacterFile);
-        endGame(guessedCorrectly);
-    } else if (msg.type === 'guessResult') {
-        gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.currentRoundHostFile, msg.currentRoundGuestFile);
-    } else if (msg.type === 'restart') {
-        startNewRound();
-    }
-}
 
 function checkIfReady() {
     if (isHost) {
@@ -198,8 +170,6 @@ function checkIfReady() {
 }
 
 function assignCharacters() {
-    currentRoundHostFile = null;
-    currentRoundGuestFile = null;
     if (characters.length < 2) {
         console.error("В наборе слишком мало персонажей!");
         return;
@@ -222,36 +192,8 @@ function assignCharacters() {
     dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters, hostFile: currentRoundHostFile, guestFile: currentRoundGuestFile }));
     renderGameBoards();
 }
-    currentRoundHostFile = null;
-    currentRoundGuestFile = null;
-    if (characters.length < 2) {
-        console.error("В наборе слишком мало персонажей!");
-        return;
-    }
-
-    let hostIndex = Math.floor(Math.random() * characters.length);
-    let guestIndex = Math.floor(Math.random() * characters.length);
-    while (guestIndex === hostIndex) {
-        guestIndex = Math.floor(Math.random() * characters.length);
-    }
-
-    currentRoundHostFile = characters[hostIndex];
-    currentRoundGuestFile = characters[guestIndex];
-
-    hostFile = currentRoundHostFile;
-    guestFile = currentRoundGuestFile;
-
-    myCharacterFile = isHost ? hostFile : guestFile;
-
-    dataChannel.send(JSON.stringify({ type: 'set', set: chosenSet, chars: characters }));
-    dataChannel.send(JSON.stringify({ type: 'assign', myCharacter: (isHost ? guestFile : hostFile) }));
-
-    renderGameBoards();
-}
 
 function renderGameBoards() {
-    console.log("Рендеринг досок начат...");
-
     document.getElementById('signal-exchange').style.display = 'none';
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
@@ -306,10 +248,6 @@ function makeGuess(characterFile) {
 }
 
 function endGame(guessedCorrectly) {
-    currentRoundHostFile = hostFile;
-    currentRoundGuestFile = guestFile;
-    currentRoundHostFile = hostFile;
-    currentRoundGuestFile = guestFile;
     gameOver = true;
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
@@ -329,10 +267,6 @@ function endGame(guessedCorrectly) {
 }
 
 function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
-    yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
-    oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
-    yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
-    oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
@@ -361,9 +295,7 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
 }
 
 function startNewRound() {
-    console.log("Начинаем новый раунд...");
     gameOver = false;
-
     assignCharacters();
 }
 
