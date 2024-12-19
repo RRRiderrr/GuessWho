@@ -10,14 +10,14 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false; 
-let myCharacter = null;
+let myCharacterFile = null; // файл персонажа текущего игрока
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-let hostSecret = null;
-let guestSecret = null;
+let hostFile = null;
+let guestFile = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -88,7 +88,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
 
         document.getElementById('restart-btn').addEventListener('click', () => {
-            // Новый раунд без переподключения
             startNewRound();
         });
 
@@ -147,18 +146,18 @@ function onDataChannelMessage(event) {
         chosenSet = msg.set;
         characters = msg.chars;
     } else if (msg.type === 'assign') {
-        myCharacter = msg.myCharacter;
+        myCharacterFile = msg.myCharacter;
+        console.log("Получил assign, мой персонаж:", myCharacterFile);
         renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
     } else if (msg.type === 'guess') {
         const guessedCharacter = msg.characterName;
-        const guessedCorrectly = (guessedCharacter === myCharacter);
+        const guessedCorrectly = (guessedCharacter === myCharacterFile);
         endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
-        // Т.к. теперь передаем персонажей в guessResult, гарантируем корректный показ итога
         gameOver = true;
-        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacter, msg.opponentCharacter);
+        showGameResult(msg.result, msg.guesserIsHost, msg.yourCharacterFile, msg.opponentCharacterFile);
     }
 }
 
@@ -171,16 +170,26 @@ function checkIfReady() {
 }
 
 function assignCharacters() {
-    const hostIndex = Math.floor(Math.random() * characters.length);
-    const guestIndex = Math.floor(Math.random() * characters.length);
-    
-    hostSecret = characters[hostIndex].replace(/\..+$/, '');
-    guestSecret = characters[guestIndex].replace(/\..+$/, '');
-    
-    myCharacter = isHost ? hostSecret : guestSecret; 
+    if (characters.length < 2) {
+        console.error("В наборе слишком мало персонажей!");
+        return;
+    }
+
+    let hostIndex = Math.floor(Math.random() * characters.length);
+    let guestIndex = Math.floor(Math.random() * characters.length);
+    while (guestIndex === hostIndex) {
+        guestIndex = Math.floor(Math.random() * characters.length);
+    }
+
+    hostFile = characters[hostIndex];
+    guestFile = characters[guestIndex];
+
+    myCharacterFile = isHost ? hostFile : guestFile;
+
+    console.log(`Назначены персонажи: хост=${hostFile}, гость=${guestFile}, я=${myCharacterFile}`);
 
     dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
-    dataChannel.send(JSON.stringify({type:'assign', myCharacter: (isHost ? guestSecret : hostSecret)}));
+    dataChannel.send(JSON.stringify({type:'assign', myCharacter: (isHost ? guestFile : hostFile)}));
 
     renderGameBoards();
 }
@@ -194,21 +203,20 @@ function renderGameBoards() {
     // Мой персонаж
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-    myContainer.appendChild(createCharCard(myCharacter));
+    myContainer.appendChild(createCharCard(myCharacterFile));
 
     // Персонажи оппонента
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
-        const name = c.replace(/\..+$/, '');
-        const div = createCharCard(name);
+        const div = createCharCard(c);
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
         guessBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (gameOver) return;
-            makeGuess(name);
+            makeGuess(c);
         });
         div.appendChild(guessBtn);
 
@@ -221,47 +229,46 @@ function renderGameBoards() {
     });
 }
 
-function createCharCard(charName) {
+function createCharCard(fileName) {
     const div = document.createElement('div');
     div.className = 'char';
     const img = document.createElement('img');
-    const cFile = characters.find(c => c.replace(/\..+$/, '') === charName);
-    img.src = cFile ? `packs/${chosenSet}/${cFile}` : '';
+    img.src = `packs/${chosenSet}/${fileName}`;
     const p = document.createElement('p');
-    p.textContent = charName;
+    p.textContent = fileName.replace(/\..+$/, '');
     div.appendChild(img);
     div.appendChild(p);
     return div;
 }
 
-function makeGuess(characterName) {
+function makeGuess(characterFile) {
     if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
-        dataChannel.send(JSON.stringify({type:'guess', characterName: characterName}));
+        dataChannel.send(JSON.stringify({type:'guess', characterName: characterFile}));
     }
 }
 
 function endGame(guessedCorrectly) {
     gameOver = true;
-    // Я - defender (кто получил guess)
     const result = guessedCorrectly ? 'guesser' : 'defender';
     const guesserIsHost = !isHost;
 
-    // Гарантируем корректные данные о персонажах для итога
-    const yourChar = isHost ? hostSecret : guestSecret;
-    const oppChar = isHost ? guestSecret : hostSecret;
+    const yourCharFile = isHost ? hostFile : guestFile;
+    const oppCharFile = isHost ? guestFile : hostFile;
+
+    console.log("Игра окончена:", {result, guesserIsHost, yourCharFile, oppCharFile});
 
     dataChannel.send(JSON.stringify({
         type: 'guessResult',
         result: result,
         guesserIsHost: guesserIsHost,
-        yourCharacter: yourChar,
-        opponentCharacter: oppChar
+        yourCharacterFile: yourCharFile,
+        opponentCharacterFile: oppCharFile
     }));
 
-    showGameResult(result, guesserIsHost, yourChar, oppChar);
+    showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
 }
 
-function showGameResult(result, guesserIsHost, yourChar, oppChar) {
+function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     gameOver = true;
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
@@ -270,14 +277,12 @@ function showGameResult(result, guesserIsHost, yourChar, oppChar) {
 
     let msg;
     if (result === 'guesser') {
-        // Guesser угадал
         if (iAmGuesser) {
             msg = "Вы угадали персонажа оппонента!";
         } else {
             msg = "Оппонент угадал вашего персонажа! Вы проиграли.";
         }
     } else {
-        // Defender выиграл
         if (iAmGuesser) {
             msg = "Вы не угадали персонажа оппонента! Вы проиграли.";
         } else {
@@ -289,17 +294,17 @@ function showGameResult(result, guesserIsHost, yourChar, oppChar) {
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(yourChar));
+    finalYourChar.appendChild(createCharCard(yourCharFile));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(oppChar));
+    finalOppChar.appendChild(createCharCard(oppCharFile));
 }
 
 function startNewRound() {
-    // Начинаем новый раунд без переподключения
+    console.log("Начинаем новый раунд");
     gameOver = false;
-    assignCharacters(); // Снова назначаем персонажей и отрисовываем доску
+    assignCharacters();
 }
 
 async function createOfferWithCompleteICE(pc) {
