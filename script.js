@@ -20,21 +20,32 @@ let hostFile = null; // Персонаж хоста
 let guestFile = null; // Персонаж гостя
 let playerName = ''; // Псевдоним игрока
 
+function showScreen(screenId) {
+    // Скрываем все экраны
+    const screens = document.querySelectorAll('.container');
+    screens.forEach(screen => screen.style.display = 'none');
+
+    // Показываем только текущий экран
+    const targetScreen = document.getElementById(screenId);
+    if (targetScreen) {
+        targetScreen.style.display = 'block';
+    }
+}
+
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Ввод псевдонима игрока
-        const nicknameInput = document.getElementById('nickname');
-        const startGameBtn = document.getElementById('start-game-btn');
+        // Начинаем с экрана ввода псевдонима
+        showScreen('nickname-screen');
 
-        startGameBtn.addEventListener('click', () => {
-            const nickname = nicknameInput.value.trim();
-            if (nickname === '') {
-                alert('Введите псевдоним!');
-                return;
+        // Обработка кнопки "Начать игру"
+        document.getElementById('start-game-btn').addEventListener('click', () => {
+            const nickname = document.getElementById('nickname').value.trim();
+            if (nickname) {
+                playerName = nickname;
+                showScreen('setup-screen');
+            } else {
+                alert('Введите ваш псевдоним!');
             }
-            playerName = nickname;
-            document.getElementById('nickname-screen').style.display = 'none';
-            document.getElementById('setup-screen').style.display = 'block';
         });
 
         // Загрузка наборов персонажей
@@ -50,33 +61,33 @@ document.addEventListener('DOMContentLoaded', async () => {
             setSelect.appendChild(opt);
         });
 
-        // Настройки хоста
+        // Обработка перехода к настройке хоста
         document.getElementById('host-btn').addEventListener('click', () => {
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('host-setup').style.display = 'block';
+            showScreen('host-setup');
             isHost = true;
         });
 
-        // Настройки клиента
+        // Обработка перехода к настройке клиента
         document.getElementById('join-btn').addEventListener('click', () => {
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('join-setup').style.display = 'block';
+            showScreen('join-setup');
             isHost = false;
         });
 
-        // Начало игры для хоста
+        // Обработка начала игры хостом
         document.getElementById('host-start').addEventListener('click', async () => {
             const select = document.getElementById('set-select');
             chosenSet = select.value;
             characters = JSON.parse(select.selectedOptions[0].dataset.chars);
             await startHost();
+            showScreen('signal-exchange');
         });
 
-        // Начало игры для клиента
+        // Обработка начала игры клиентом
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
             if (!remoteOffer) return;
             await startGuest(remoteOffer);
+            showScreen('signal-exchange');
         });
 
         // Применение answer
@@ -88,9 +99,16 @@ document.addEventListener('DOMContentLoaded', async () => {
                 const answerDesc = JSON.parse(answerText);
                 await localConnection.setRemoteDescription(answerDesc);
                 checkIfReady();
+                showScreen('game-board');
             } catch (error) {
                 console.error("Ошибка при обработке answer:", error);
             }
+        });
+
+        // Обработка кнопки "Начать заново"
+        document.getElementById('restart-btn').addEventListener('click', () => {
+            gameOver = false;
+            showScreen('setup-screen');
         });
 
     } catch (e) {
@@ -108,11 +126,7 @@ async function startHost() {
     const offer = await localConnection.createOffer();
     await localConnection.setLocalDescription(offer);
 
-    document.getElementById('host-setup').style.display = 'none';
-    document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
-
-    document.getElementById('apply-answer').style.display = 'block';
 }
 
 async function startGuest(remoteOffer) {
@@ -130,8 +144,6 @@ async function startGuest(remoteOffer) {
     const answer = await remoteConnection.createAnswer();
     await remoteConnection.setLocalDescription(answer);
 
-    document.getElementById('join-setup').style.display = 'none';
-    document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
 }
 
@@ -196,8 +208,6 @@ function assignCharacters() {
 }
 
 function renderGameBoards() {
-    document.getElementById('signal-exchange').style.display = 'none';
-    document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
     document.getElementById('game-result').style.display = 'none';
 
@@ -295,9 +305,4 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
     finalOppChar.appendChild(createCharCard(oppCharFile));
-}
-
-function startNewRound() {
-    gameOver = false;
-    assignCharacters();
 }
