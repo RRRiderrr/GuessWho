@@ -12,10 +12,15 @@ let chosenSet = null;
 let characters = [];
 let isHost = false; 
 let myCharacter = null;        // Секретный персонаж текущего игрока
+let opponentCharacter = null;  // Секретный персонаж оппонента (узнаем из guessResult)
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
+
+// Секреты хост хранит для обеих сторон
+let hostSecret = null;
+let guestSecret = null;
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
@@ -142,47 +147,45 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'assign') {
         // Гость получает своего скрытого персонажа
         myCharacter = msg.myCharacter;
+        // У гостя есть только myCharacter
         renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = "Противник спрашивает: " + msg.text;
     } else if (msg.type === 'guess') {
         // Проверить угадан ли персонаж
         if (msg.characterName === myCharacter) {
-            // Оппонент угадал правильно
             endGame(true, msg.characterName);
         } else {
-            // Оппонент ошибся
             endGame(false, msg.characterName);
         }
     } else if (msg.type === 'guessResult') {
-        // Результат угадывания
+        // Показать результаты
+        gameOver = true;
         showGameResult(msg.result, msg.yourCharacter, msg.myCharacter);
     }
 }
 
 function checkIfReady() {
     if (isHost) {
-        // Хост готов после установки answer и открытого канала
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
             assignCharacters();
         }
     } else {
-        // Гость готов после установки answer и открытого канала,
-        // но ждет assign от хоста, который вызовет renderGameBoards().
+        // Гость готов, когда получит assign
     }
 }
 
 function assignCharacters() {
-    // Выбрать случайного персонажа для хоста и гостя
+    // Хост выбирает случайно персонажа для себя и для гостя
     const hostIndex = Math.floor(Math.random() * characters.length);
     const guestIndex = Math.floor(Math.random() * characters.length);
     
-    const hostSecret = characters[hostIndex].replace(/\..+$/, '');
-    const guestSecret = characters[guestIndex].replace(/\..+$/, '');
+    hostSecret = characters[hostIndex].replace(/\..+$/, '');
+    guestSecret = characters[guestIndex].replace(/\..+$/, '');
     
     myCharacter = hostSecret; // хосту свой персонаж
 
-    // Отправить гостю набор и assign
+    // Отправить гостю
     dataChannel.send(JSON.stringify({type:'set', set:chosenSet, chars: characters}));
     dataChannel.send(JSON.stringify({type:'assign', myCharacter: guestSecret}));
 
@@ -194,28 +197,21 @@ function renderGameBoards() {
     document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
 
-    // Мои персонажи
-    const myBoard = document.getElementById('my-characters');
-    myBoard.innerHTML = '';
-    characters.forEach(c => {
-        const name = c.replace(/\..+$/, '');
-        const div = document.createElement('div');
-        div.className = 'char';
-        const img = document.createElement('img');
-        img.src = `packs/${chosenSet}/${c}`;
-        const p = document.createElement('p');
-        p.textContent = name;
-        div.appendChild(img);
-        div.appendChild(p);
-        // Нажатие на свою карточку - toggle скрытия
-        div.addEventListener('click', (e) => {
-            if (gameOver) return;
-            div.classList.toggle('hidden');
-        });
-        myBoard.appendChild(div);
-    });
+    // Мой персонаж (только один)
+    const myContainer = document.getElementById('my-character-container');
+    myContainer.innerHTML = '';
+    const myCharDiv = document.createElement('div');
+    myCharDiv.className = 'char';
+    const myCharImg = document.createElement('img');
+    const myCharFile = characters.find(c => c.replace(/\..+$/, '') === myCharacter);
+    myCharImg.src = `packs/${chosenSet}/${myCharFile}`;
+    const myCharP = document.createElement('p');
+    myCharP.textContent = myCharacter;
+    myCharDiv.appendChild(myCharImg);
+    myCharDiv.appendChild(myCharP);
+    myContainer.appendChild(myCharDiv);
 
-    // Персонажи оппонента
+    // Персонажи оппонента (все)
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
@@ -240,6 +236,12 @@ function renderGameBoards() {
         });
         div.appendChild(guessBtn);
 
+        // Клик по карточке оппонента - скрыть/показать
+        div.addEventListener('click', () => {
+            if (gameOver) return;
+            div.classList.toggle('hidden');
+        });
+
         oppBoard.appendChild(div);
     });
 }
@@ -253,14 +255,41 @@ function makeGuess(characterName) {
 function endGame(guessedCorrectly, guessedCharacter) {
     gameOver = true;
     const result = guessedCorrectly ? 'correct' : 'wrong';
-    // Отправим guessResult
-    // yourCharacter - мой персонаж, myCharacter - guessedCharacter (персонаж, которого назвал оппонент)
-    dataChannel.send(JSON.stringify({
+
+    // У хоста есть оба персонажа
+    // У гостя только свой. Чтобы все знали оба персонажа:
+    // При guessResult передадим yourCharacter (мой) и myCharacter (угадываемый)
+    // Для хоста: yourCharacter = myCharacter (у кого сейчас endGame вызывается), myCharacter = тот, кого назвали.
+    // У хоста: yourCharacter = hostSecret, myCharacter = guestSecret, если гость угадывал.
+    // Но мы должны отразить итог одинаково.
+    // Логика: 
+    // - Если хост отвечает на guess (значит гость угадывал):
+    //   yourCharacter = hostSecret (хостовский персонаж)
+    //   myCharacter = guestSecret (гостевской персонаж)
+    // - Если гость отвечает на guess (значит хост угадывал):
+    //   yourCharacter = guestSecret (гостевской)
+    //   myCharacter = hostSecret (хостовской)
+    // Узнаем по роли:
+    let yourChar, oppChar;
+    if (isHost) {
+        yourChar = hostSecret;
+        oppChar = guestSecret;
+    } else {
+        yourChar = guestSecret;
+        oppChar = hostSecret;
+    }
+
+    const guessResultMsg = {
         type: 'guessResult',
         result: result,
-        yourCharacter: myCharacter,
-        myCharacter: guessedCharacter
-    }));
+        yourCharacter: yourChar,
+        myCharacter: oppChar
+    };
+
+    // Отправляем оппоненту
+    dataChannel.send(JSON.stringify(guessResultMsg));
+    // Отображаем результат у себя
+    showGameResult(result, yourChar, oppChar);
 }
 
 function showGameResult(result, yourChar, oppChar) {
