@@ -22,7 +22,7 @@ let playerName = ''; // Псевдоним игрока
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        // Псевдоним игрока
+        // Ввод псевдонима игрока
         const nicknameInput = document.getElementById('nickname');
         const startGameBtn = document.getElementById('start-game-btn');
 
@@ -37,6 +37,7 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('setup-screen').style.display = 'block';
         });
 
+        // Загрузка наборов персонажей
         const response = await fetch('packs.json');
         const data = await response.json();
 
@@ -49,18 +50,21 @@ document.addEventListener('DOMContentLoaded', async () => {
             setSelect.appendChild(opt);
         });
 
+        // Настройки хоста
         document.getElementById('host-btn').addEventListener('click', () => {
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('host-setup').style.display = 'block';
             isHost = true;
         });
 
+        // Настройки клиента
         document.getElementById('join-btn').addEventListener('click', () => {
             document.getElementById('setup-screen').style.display = 'none';
             document.getElementById('join-setup').style.display = 'block';
             isHost = false;
         });
 
+        // Начало игры для хоста
         document.getElementById('host-start').addEventListener('click', async () => {
             const select = document.getElementById('set-select');
             chosenSet = select.value;
@@ -68,43 +72,25 @@ document.addEventListener('DOMContentLoaded', async () => {
             await startHost();
         });
 
+        // Начало игры для клиента
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
             if (!remoteOffer) return;
             await startGuest(remoteOffer);
         });
 
-        document.getElementById('copy-desc').addEventListener('click', () => {
-            const desc = document.getElementById('local-desc');
-            desc.select();
-            document.execCommand('copy');
-        });
-
+        // Применение answer
         document.getElementById('apply-answer').addEventListener('click', async () => {
-            const ans = document.getElementById('remote-answer').value;
-            if (!ans) return;
+            const answerText = document.getElementById('remote-answer').value;
+            if (!answerText) return;
+
             try {
-                answerDesc = JSON.parse(ans);
-                if (answerDesc.type !== 'answer') {
-                    throw new Error("Неверный тип SDP, ожидается answer");
-                }
+                const answerDesc = JSON.parse(answerText);
                 await localConnection.setRemoteDescription(answerDesc);
                 checkIfReady();
-            } catch (e) {
-                console.error("Ошибка при применении answer:", e);
+            } catch (error) {
+                console.error("Ошибка при обработке answer:", error);
             }
-        });
-
-        document.getElementById('ask-btn').addEventListener('click', () => {
-            const question = document.getElementById('question').value.trim();
-            if (question && dataChannel && dataChannel.readyState === 'open' && !gameOver) {
-                dataChannel.send(JSON.stringify({ type: 'question', text: question, sender: playerName }));
-                document.getElementById('status').textContent = `${playerName} пишет: ${question}`;
-            }
-        });
-
-        document.getElementById('restart-btn').addEventListener('click', () => {
-            startNewRound();
         });
 
     } catch (e) {
@@ -126,7 +112,7 @@ async function startHost() {
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
 
-    document.getElementById('host-accept-answer').style.display = 'block';
+    document.getElementById('apply-answer').style.display = 'block';
 }
 
 async function startGuest(remoteOffer) {
