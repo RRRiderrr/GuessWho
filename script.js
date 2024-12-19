@@ -10,20 +10,18 @@ let dataChannel;
 let chosenSet = null;
 let characters = [];
 let isHost = false;
-let myCharacterFile = null; // Персонаж текущего игрока
+let myCharacterFile = null;
 let gameOver = false;
 
 let offerDesc = null;
 let answerDesc = null;
 
-let hostFile = null; // Персонаж хоста
-let guestFile = null; // Персонаж гостя
-let playerName = ''; // Псевдоним игрока
+let hostFile = null;
+let guestFile = null;
 
 function showScreen(screenId) {
     const screens = document.querySelectorAll('.container');
     screens.forEach(screen => screen.style.display = 'none');
-
     const targetScreen = document.getElementById(screenId);
     if (targetScreen) {
         targetScreen.style.display = 'block';
@@ -32,17 +30,7 @@ function showScreen(screenId) {
 
 document.addEventListener('DOMContentLoaded', async () => {
     try {
-        showScreen('nickname-screen');
-
-        document.getElementById('start-game-btn').addEventListener('click', () => {
-            const nickname = document.getElementById('nickname').value.trim();
-            if (nickname) {
-                playerName = nickname;
-                showScreen('setup-screen');
-            } else {
-                alert('Введите ваш псевдоним!');
-            }
-        });
+        showScreen('setup-screen');
 
         const response = await fetch('packs.json');
         const data = await response.json();
@@ -76,9 +64,19 @@ document.addEventListener('DOMContentLoaded', async () => {
 
         document.getElementById('join-start').addEventListener('click', async () => {
             const remoteOffer = document.getElementById('remote-offer').value;
-            if (!remoteOffer) return;
-            await startGuest(remoteOffer);
-            showScreen('signal-exchange');
+            if (!remoteOffer) {
+                alert('Введите предложение от хоста!');
+                return;
+            }
+
+            try {
+                const parsedOffer = JSON.parse(remoteOffer);
+                await startGuest(parsedOffer);
+                showScreen('signal-exchange');
+            } catch (error) {
+                alert('Некорректное предложение. Убедитесь, что вы вставили правильные данные.');
+                console.error("Ошибка парсинга JSON:", error);
+            }
         });
 
         document.getElementById('apply-answer').addEventListener('click', async () => {
@@ -119,21 +117,24 @@ async function startHost() {
 }
 
 async function startGuest(remoteOffer) {
-    remoteConnection = new RTCPeerConnection(rtcConfig);
+    try {
+        remoteConnection = new RTCPeerConnection(rtcConfig);
 
-    remoteConnection.ondatachannel = (event) => {
-        dataChannel = event.channel;
-        dataChannel.onopen = onDataChannelOpen;
-        dataChannel.onmessage = onDataChannelMessage;
-    };
+        remoteConnection.ondatachannel = (event) => {
+            dataChannel = event.channel;
+            dataChannel.onopen = onDataChannelOpen;
+            dataChannel.onmessage = onDataChannelMessage;
+        };
 
-    const offerDesc = JSON.parse(remoteOffer);
-    await remoteConnection.setRemoteDescription(offerDesc);
+        await remoteConnection.setRemoteDescription(remoteOffer);
 
-    const answer = await remoteConnection.createAnswer();
-    await remoteConnection.setLocalDescription(answer);
+        const answer = await remoteConnection.createAnswer();
+        await remoteConnection.setLocalDescription(answer);
 
-    document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+        document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+    } catch (error) {
+        console.error("Ошибка при обработке remoteOffer:", error);
+    }
 }
 
 function onDataChannelOpen() {
