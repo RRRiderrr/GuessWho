@@ -107,7 +107,6 @@ textarea, input[type="text"] {
     justify-content: space-between;
     align-items: center;
     background-color: #fff;
-    pointer-events: auto;
 }
 
 .char img {
@@ -129,9 +128,8 @@ textarea, input[type="text"] {
 
 /* Карточки персонажей, которые отмечены как "неактивные" */
 .char.disabled {
-    opacity: 0.5;
-    pointer-events: none; /* Запрещает клики по помеченным карточкам */
-    pointer-events: none;
+    opacity: 0.5; /* Визуальный эффект "серости" */
+    transition: opacity 0.3s; /* Плавный переход */
 }
 
 /* Кнопка на карточке */
