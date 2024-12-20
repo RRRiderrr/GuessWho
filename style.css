@@ -168,28 +168,32 @@ textarea, input[type="text"] {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin-top: 20px;
 }
 
-#game-result h3 {
+#game-result h3, #game-result h4 {
+    text-align: center;
+}
+
+#result-message {
     margin-bottom: 20px;
 }
 
-#game-result .result-section {
+#final-your-char, #final-opp-char {
     display: flex;
     flex-direction: column;
     align-items: center;
-    margin: 20px 0;
+    margin: 0 20px;
 }
 
-#game-result .result-section h4 {
-    margin-bottom: 10px;
+#final-your-char .char, #final-opp-char .char {
+    margin: 10px 0;
 }
 
-#game-result .result-section .char {
+#final-results-container {
     display: flex;
-    flex-direction: column;
-    align-items: center;
+    justify-content: center;
+    margin-bottom: 20px;
+}
 }
 
 #game-result p {
@@ -207,5 +211,6 @@ textarea, input[type="text"] {
 }
 
 #restart-btn {
-    margin-top: 40px; /* Увеличиваем отступ между кнопкой и карточками */
+    margin-top: 20px;
+    align-self: center;
 }
