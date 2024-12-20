@@ -245,12 +245,15 @@ function renderGameBoards() {
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
         guessBtn.disabled = false; // Кнопка активна по умолчанию
+
+        // Обработчик нажатия на кнопку
         guessBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (gameOver || div.classList.contains('disabled')) return;
             makeGuess(c);
         });
 
+        // Обработчик нажатия на карточку
         div.addEventListener('click', () => {
             if (gameOver) return;
 
