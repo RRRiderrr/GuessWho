@@ -151,7 +151,7 @@ function onDataChannelMessage(event) {
         myCharacterFile = msg.myCharacter;
         renderGameBoards();
     } else if (msg.type === 'question') {
-        document.getElementById('status').textContent = [Противник]: ${msg.text};
+        document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
     } else if (msg.type === 'guess') {
         const guessedCharacter = msg.characterName;
         const guessedCorrectly = (guessedCharacter === myCharacterFile);
