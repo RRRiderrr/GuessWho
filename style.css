@@ -216,5 +216,7 @@ textarea, input[type="text"] {
 
 #restart-btn {
     margin-top: 20px;
-    align-self: center; /* Центрируем кнопку */
+    display: block; /* Обеспечиваем, что кнопка занимает свою строку */
+    margin-left: auto;
+    margin-right: auto; /* Центрируем кнопку по горизонтали */
 }
