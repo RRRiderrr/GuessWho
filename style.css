@@ -9,14 +9,18 @@ body {
 
 /* Контейнер */
 .container {
-    width: 90%;
-    max-width: 800px;
-    margin: 20px auto;
-    background-color: #fff;
-    border-radius: 8px;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
-    padding: 20px;
+    width: 100%; /* Занимает всю доступную ширину */
+    max-width: 1400px; /* Максимальная ширина стола */
+    margin: 0 auto; /* Центрирование контейнера на странице */
+    padding: 20px; /* Внутренние отступы для аккуратного вида */
+    box-sizing: border-box; /* Учет отступов в ширине */
+    display: flex; /* Для адаптивности */
+    flex-direction: column; /* Вертикальное выравнивание контента */
+    align-items: center; /* Центрирование контента */
+    justify-content: center; /* Горизонтальное центрирование */
+    background-color: #fff; /* Белый фон (если нужно) */
 }
+
 
 /* Заголовки */
 h1 {
