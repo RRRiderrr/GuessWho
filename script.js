@@ -153,14 +153,15 @@ function onDataChannelOpen() {
 function onDataChannelMessage(event) {
     const msg = JSON.parse(event.data);
     if (msg.type === 'set') {
+        document.getElementById('signal-exchange').style.display = 'none'; // Скрыть signal-exchange
         chosenSet = msg.set;
         characters = msg.chars;
         currentRoundHostFile = msg.hostFile;
         currentRoundGuestFile = msg.guestFile;
         renderGameBoards();
     } else if (msg.type === 'assign') {
-    myCharacterFile = isHost ? currentRoundHostFile : currentRoundGuestFile; // Устанавливаем правильный персонаж
-    renderGameBoards();
+        myCharacterFile = msg.myCharacter;
+        renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
     } else if (msg.type === 'guess') {
@@ -178,13 +179,13 @@ function onDataChannelMessage(event) {
 function checkIfReady() {
     if (isHost) {
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
+            document.getElementById('signal-exchange').style.display = 'none'; // Скрыть signal-exchange
             assignCharacters();
-            document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
         }
     } else {
         if (remoteConnection.localDescription && dataChannel && dataChannel.readyState === 'open') {
+            document.getElementById('signal-exchange').style.display = 'none'; // Скрыть signal-exchange
             renderGameBoards();
-            document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
         }
     }
 }
