@@ -165,8 +165,31 @@ textarea, input[type="text"] {
 
 /* Результаты игры */
 #game-result {
-    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
     margin-top: 20px;
+}
+
+#game-result h3 {
+    margin-bottom: 20px;
+}
+
+#game-result .result-section {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    margin: 20px 0;
+}
+
+#game-result .result-section h4 {
+    margin-bottom: 10px;
+}
+
+#game-result .result-section .char {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 #game-result p {
@@ -181,4 +204,8 @@ textarea, input[type="text"] {
 
 .hidden {
     display: none;
+}
+
+#restart-btn {
+    margin-top: 40px; /* Увеличиваем отступ между кнопкой и карточками */
 }
