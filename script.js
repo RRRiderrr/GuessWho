@@ -212,39 +212,38 @@ function assignCharacters() {
 
 function renderGameBoards() {
     document.getElementById('signal-exchange').style.display = 'none';
-    document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
     document.getElementById('game-result').style.display = 'none';
 
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-    myContainer.appendChild(createCharCard(myCharacterFile));
+    if (myCharacterFile) {
+        myContainer.appendChild(createCharCard(myCharacterFile));
+    } else {
+        const placeholder = document.createElement('div');
+        placeholder.textContent = "Неизвестный персонаж";
+        myContainer.appendChild(placeholder);
+    }
 
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
+        if (!c) return;
         const div = createCharCard(c);
 
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (gameOver || div.classList.contains('disabled')) return;
-            makeGuess(c);
-        });
-
-        div.addEventListener('click', () => {
+        guessBtn.addEventListener('click', () => {
             if (gameOver) return;
-            div.classList.toggle('disabled');
-            const btn = div.querySelector('.guess-btn');
-            btn.disabled = div.classList.contains('disabled');
+            makeGuess(c);
         });
 
         div.appendChild(guessBtn);
         oppBoard.appendChild(div);
     });
 }
+
 
 function createCharCard(fileName) {
     if (!fileName) {
