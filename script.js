@@ -180,6 +180,7 @@ function checkIfReady() {
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
             assignCharacters();
             document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
+            document.getElementById('host-accept-answer').style.display = 'none'; // Скрываем host-accept-answer
         }
     } else {
         if (remoteConnection.localDescription && dataChannel && dataChannel.readyState === 'open') {
