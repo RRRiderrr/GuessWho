@@ -194,8 +194,10 @@ function assignCharacters() {
     hostFile = currentRoundHostFile;
     guestFile = currentRoundGuestFile;
 
+    // Устанавливаем "Мой персонаж" для каждой стороны
     myCharacterFile = isHost ? hostFile : guestFile;
 
+    // Отправляем данные на другую сторону
     dataChannel.send(JSON.stringify({
         type: 'set',
         set: chosenSet,
@@ -206,6 +208,7 @@ function assignCharacters() {
 
     renderGameBoards();
 }
+
 
 function renderGameBoards() {
     document.getElementById('signal-exchange').style.display = 'none';
@@ -290,7 +293,7 @@ function endGame(guessedCorrectly) {
     showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
 }
 
-function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
+function showGameResult(result, guesserIsHost, hostChar, guestChar) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
@@ -311,12 +314,13 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(yourCharFile));
+    finalYourChar.appendChild(createCharCard(isHost ? currentRoundHostFile : currentRoundGuestFile));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
-    finalOppChar.appendChild(createCharCard(oppCharFile));
+    finalOppChar.appendChild(createCharCard(isHost ? currentRoundGuestFile : currentRoundHostFile));
 }
+
 
 function startNewRound() {
     gameOver = false;
