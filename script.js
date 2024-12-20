@@ -148,8 +148,8 @@ function onDataChannelMessage(event) {
         currentRoundGuestFile = msg.guestFile;
         renderGameBoards();
     } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
+    myCharacterFile = isHost ? currentRoundHostFile : currentRoundGuestFile; // Устанавливаем правильный персонаж
+    renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
     } else if (msg.type === 'guess') {
@@ -204,9 +204,13 @@ function assignCharacters() {
         guestFile: currentRoundGuestFile
     }));
 
+    dataChannel.send(JSON.stringify({
+        type: 'assign',
+        myCharacter: myCharacterFile // Отправляем клиенту его персонажа
+    }));
+
     renderGameBoards();
 }
-
 
 
 function renderGameBoards() {
@@ -216,10 +220,11 @@ function renderGameBoards() {
 
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
+
     if (myCharacterFile) {
         myContainer.appendChild(createCharCard(myCharacterFile));
     } else {
-        const placeholder = document.createElement('div');
+        const placeholder = document.createElement('p');
         placeholder.textContent = "Персонаж не выбран.";
         myContainer.appendChild(placeholder);
     }
@@ -227,22 +232,28 @@ function renderGameBoards() {
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
-        if (!c) return;
         const div = createCharCard(c);
 
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', () => {
-            if (gameOver) return;
+        guessBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (gameOver || div.classList.contains('disabled')) return;
             makeGuess(c);
+        });
+
+        div.addEventListener('click', () => {
+            if (gameOver) return;
+            div.classList.toggle('disabled');
+            const btn = div.querySelector('.guess-btn');
+            btn.disabled = div.classList.contains('disabled');
         });
 
         div.appendChild(guessBtn);
         oppBoard.appendChild(div);
     });
 }
-
 
 function createCharCard(fileName) {
     const div = document.createElement('div');
