@@ -81,6 +81,17 @@ document.addEventListener('DOMContentLoaded', async () => {
             }
         });
 
+document.getElementById('ask-btn').addEventListener('click', () => {
+    const questionInput = document.getElementById('question-input');
+    const message = questionInput.value.trim();
+    if (!message || !dataChannel || dataChannel.readyState !== 'open') return;
+
+    dataChannel.send(JSON.stringify({ type: 'question', text: message }));
+    questionInput.value = '';
+    document.getElementById('status').textContent = `[Вы]: ${message}`;
+});
+
+        
         document.getElementById('restart-btn').addEventListener('click', () => {
             startNewRound();
             if (dataChannel && dataChannel.readyState === 'open') {
@@ -216,20 +227,13 @@ function assignCharacters() {
 
 
 function renderGameBoards() {
-    document.getElementById('signal-exchange').style.display = 'none';
+    document.getElementById('signal-exchange').style.display = 'none'; // Скрыть signal-exchange
     document.getElementById('game-board').style.display = 'block';
     document.getElementById('game-result').style.display = 'none';
 
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-
-    if (myCharacterFile) {
-        myContainer.appendChild(createCharCard(myCharacterFile));
-    } else {
-        const placeholder = document.createElement('p');
-        placeholder.textContent = "Персонаж не выбран.";
-        myContainer.appendChild(placeholder);
-    }
+    myContainer.appendChild(createCharCard(myCharacterFile));
 
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
