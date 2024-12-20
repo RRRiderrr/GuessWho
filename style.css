@@ -131,6 +131,7 @@ textarea, input[type="text"] {
 .char.disabled {
     opacity: 0.5;
     pointer-events: none; /* Запрещает клики по помеченным карточкам */
+    pointer-events: none;
 }
 
 /* Кнопка на карточке */
