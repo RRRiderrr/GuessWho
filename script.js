@@ -13,6 +13,9 @@ let isHost = false;
 let myCharacterFile = null;
 let gameOver = false;
 
+let offerDesc = null;
+let answerDesc = null;
+
 let hostFile = null;
 let guestFile = null;
 let currentRoundHostFile = null;
@@ -67,7 +70,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             const ans = document.getElementById('remote-answer').value;
             if (!ans) return;
             try {
-                const answerDesc = JSON.parse(ans);
+                answerDesc = JSON.parse(ans);
+                if (answerDesc.type !== 'answer') {
+                    throw new Error("Неверный тип SDP, ожидается answer");
+                }
                 await localConnection.setRemoteDescription(answerDesc);
                 checkIfReady();
             } catch (e) {
@@ -94,12 +100,13 @@ async function startHost() {
     dataChannel.onopen = onDataChannelOpen;
     dataChannel.onmessage = onDataChannelMessage;
 
-    const offer = await localConnection.createOffer();
-    await localConnection.setLocalDescription(offer);
+    await createOfferWithCompleteICE(localConnection);
 
     document.getElementById('host-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(localConnection.localDescription);
+
+    document.getElementById('host-accept-answer').style.display = 'block';
 }
 
 async function startGuest(remoteOffer) {
@@ -111,15 +118,19 @@ async function startGuest(remoteOffer) {
         dataChannel.onmessage = onDataChannelMessage;
     };
 
-    const offerDesc = JSON.parse(remoteOffer);
+    offerDesc = JSON.parse(remoteOffer);
+    if (offerDesc.type !== 'offer') {
+        console.error("Некорректный SDP, ожидается offer");
+        return;
+    }
     await remoteConnection.setRemoteDescription(offerDesc);
 
-    const answer = await remoteConnection.createAnswer();
-    await remoteConnection.setLocalDescription(answer);
+    await createAnswerWithCompleteICE(remoteConnection);
 
     document.getElementById('join-setup').style.display = 'none';
     document.getElementById('signal-exchange').style.display = 'block';
     document.getElementById('local-desc').value = JSON.stringify(remoteConnection.localDescription);
+
     checkIfReady();
 }
 
@@ -139,6 +150,12 @@ function onDataChannelMessage(event) {
     } else if (msg.type === 'assign') {
         myCharacterFile = msg.myCharacter;
         renderGameBoards();
+    } else if (msg.type === 'question') {
+        document.getElementById('status').textContent = [Противник]: ${msg.text};
+    } else if (msg.type === 'guess') {
+        const guessedCharacter = msg.characterName;
+        const guessedCorrectly = (guessedCharacter === myCharacterFile);
+        endGame(guessedCorrectly);
     } else if (msg.type === 'guessResult') {
         gameOver = true;
         showGameResult(msg.result, msg.guesserIsHost, msg.currentRoundHostFile, msg.currentRoundGuestFile);
@@ -192,27 +209,33 @@ function assignCharacters() {
 
 function renderGameBoards() {
     document.getElementById('signal-exchange').style.display = 'none';
+    document.getElementById('host-accept-answer').style.display = 'none';
     document.getElementById('game-board').style.display = 'block';
     document.getElementById('game-result').style.display = 'none';
 
     const myContainer = document.getElementById('my-character-container');
     myContainer.innerHTML = '';
-    if (myCharacterFile) {
-        myContainer.appendChild(createCharCard(myCharacterFile));
-    }
+    myContainer.appendChild(createCharCard(myCharacterFile));
 
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
-        if (!c) return;
         const div = createCharCard(c);
 
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', () => {
-            if (gameOver) return;
+        guessBtn.addEventListener('click', (e) => {
+            e.stopPropagation();
+            if (gameOver || div.classList.contains('disabled')) return;
             makeGuess(c);
+        });
+
+        div.addEventListener('click', () => {
+            if (gameOver) return;
+            div.classList.toggle('disabled');
+            const btn = div.querySelector('.guess-btn');
+            btn.disabled = div.classList.contains('disabled');
         });
 
         div.appendChild(guessBtn);
@@ -223,7 +246,10 @@ function renderGameBoards() {
 function createCharCard(fileName) {
     if (!fileName) {
         const placeholder = document.createElement('div');
-        placeholder.textContent = "Нет данных";
+        placeholder.className = 'char';
+        const p = document.createElement('p');
+        p.textContent = "Неизвестный персонаж";
+        placeholder.appendChild(p);
         return placeholder;
     }
 
@@ -238,36 +264,89 @@ function createCharCard(fileName) {
     return div;
 }
 
+
 function makeGuess(characterFile) {
     if (!gameOver && dataChannel && dataChannel.readyState === 'open') {
         dataChannel.send(JSON.stringify({ type: 'guess', characterName: characterFile }));
     }
 }
 
-function showGameResult(result, guesserIsHost, hostChar, guestChar) {
+function endGame(guessedCorrectly) {
+    gameOver = true;
+    const result = guessedCorrectly ? 'guesser' : 'defender';
+    const guesserIsHost = !isHost;
+
+    const yourCharFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
+    const oppCharFile = isHost ? currentRoundGuestFile : currentRoundHostFile;
+
+    dataChannel.send(JSON.stringify({
+        type: 'guessResult',
+        result: result,
+        guesserIsHost: guesserIsHost,
+        currentRoundHostFile: currentRoundHostFile,
+        currentRoundGuestFile: currentRoundGuestFile
+    }));
+
+    showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
+}
+
+function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
-    const msg = result === 'guesser'
-        ? "Вы выиграли!"
-        : "Вы проиграли!";
+    const iAmGuesser = (guesserIsHost === isHost);
+
+    let msg;
+    if (result === 'guesser') {
+        msg = iAmGuesser
+            ? "Вы выиграли! Вы угадали персонажа оппонента."
+            : "Вы проиграли! Оппонент угадал вашего персонажа.";
+    } else {
+        msg = iAmGuesser
+            ? "Вы проиграли! Вы не угадали персонажа оппонента."
+            : "Вы выиграли! Оппонент не угадал вашего персонажа.";
+    }
 
     document.getElementById('result-message').textContent = msg;
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    if (hostChar) {
-        finalYourChar.appendChild(createCharCard(isHost ? hostChar : guestChar));
-    }
+    finalYourChar.appendChild(createCharCard(yourCharFile));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
-    if (guestChar) {
-        finalOppChar.appendChild(createCharCard(isHost ? guestChar : hostChar));
-    }
+    finalOppChar.appendChild(createCharCard(oppCharFile));
 }
 
 function startNewRound() {
     gameOver = false;
     assignCharacters();
+}
+
+async function createOfferWithCompleteICE(pc) {
+    const offer = await pc.createOffer();
+    await pc.setLocalDescription(offer);
+    await waitForICEGatheringComplete(pc);
+}
+
+async function createAnswerWithCompleteICE(pc) {
+    const answer = await pc.createAnswer();
+    await pc.setLocalDescription(answer);
+    await waitForICEGatheringComplete(pc);
+}
+
+function waitForICEGatheringComplete(pc) {
+    return new Promise(resolve => {
+        if (pc.iceGatheringState === 'complete') {
+            resolve();
+        } else {
+            const checkState = () => {
+                if (pc.iceGatheringState === 'complete') {
+                    pc.removeEventListener('icegatheringstatechange', checkState);
+                    resolve();
+                }
+            };
+            pc.addEventListener('icegatheringstatechange', checkState);
+        }
+    });
 }
