@@ -168,10 +168,12 @@ function checkIfReady() {
     if (isHost) {
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
             assignCharacters();
+            document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
         }
     } else {
         if (remoteConnection.localDescription && dataChannel && dataChannel.readyState === 'open') {
             renderGameBoards();
+            document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
         }
     }
 }
