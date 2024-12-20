@@ -244,7 +244,7 @@ function renderGameBoards() {
         const guessBtn = document.createElement('button');
         guessBtn.textContent = "Выбрать персонажа";
         guessBtn.className = 'guess-btn';
-        guessBtn.disabled = false; // Устанавливаем начальное состояние кнопки
+        guessBtn.disabled = false; // Кнопка активна по умолчанию
         guessBtn.addEventListener('click', (e) => {
             e.stopPropagation();
             if (gameOver || div.classList.contains('disabled')) return;
@@ -254,15 +254,17 @@ function renderGameBoards() {
         div.addEventListener('click', () => {
             if (gameOver) return;
 
-            // Переключение состояния через класс
+            // Переключаем состояние disabled/enabled
             if (div.classList.contains('disabled')) {
                 div.classList.remove('disabled');
-                div.style.opacity = '1'; // Убираем прозрачность
-                guessBtn.disabled = false; // Снова активируем кнопку
+                div.style.opacity = '1'; // Полная видимость
+                div.style.pointerEvents = 'auto'; // Возвращаем кликабельность
+                guessBtn.disabled = false; // Кнопка снова активна
             } else {
                 div.classList.add('disabled');
-                div.style.opacity = '0.5'; // Добавляем прозрачность
-                guessBtn.disabled = true; // Деактивируем кнопку
+                div.style.opacity = '0.5'; // Прозрачность для disabled
+                div.style.pointerEvents = 'none'; // Блокируем клики на карточке
+                guessBtn.disabled = true; // Кнопка становится неактивной
             }
         });
 
