@@ -257,17 +257,15 @@ function renderGameBoards() {
         div.addEventListener('click', () => {
             if (gameOver) return;
 
-            // Переключаем состояние disabled/enabled
+            // Переключаем визуальное состояние карточки
             if (div.classList.contains('disabled')) {
                 div.classList.remove('disabled');
-                div.style.opacity = '1'; // Полная видимость
-                div.style.pointerEvents = 'auto'; // Возвращаем кликабельность
-                guessBtn.disabled = false; // Кнопка снова активна
+                div.style.opacity = '1'; // Убираем эффект "серости"
+                guessBtn.disabled = false; // Разблокируем кнопку
             } else {
                 div.classList.add('disabled');
-                div.style.opacity = '0.5'; // Прозрачность для disabled
-                div.style.pointerEvents = 'none'; // Блокируем клики на карточке
-                guessBtn.disabled = true; // Кнопка становится неактивной
+                div.style.opacity = '0.5'; // Добавляем эффект "серости"
+                guessBtn.disabled = true; // Блокируем кнопку
             }
         });
 
