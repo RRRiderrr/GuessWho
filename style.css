@@ -185,16 +185,20 @@ textarea, input[type="text"] {
     margin: 0 20px;
 }
 
-#final-your-char .char, #final-opp-char .char {
-    margin: 10px 0;
+#final-your-char, #final-opp-char {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
 }
 
 #final-results-container {
     display: flex;
     justify-content: center;
-    margin-bottom: 20px;
+    align-items: center; /* Выравниваем карточки по вертикали */
+    gap: 40px; /* Увеличиваем расстояние между карточками */
+    margin-bottom: 30px;
 }
-}
+
 
 #game-result p {
     font-size: 18px;
@@ -212,5 +216,5 @@ textarea, input[type="text"] {
 
 #restart-btn {
     margin-top: 20px;
-    align-self: center;
+    align-self: center; /* Центрируем кнопку */
 }
