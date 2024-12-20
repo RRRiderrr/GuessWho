@@ -239,28 +239,34 @@ function renderGameBoards() {
     const oppBoard = document.getElementById('opponent-characters');
     oppBoard.innerHTML = '';
     characters.forEach(c => {
-        const div = createCharCard(c);
+    const div = createCharCard(c);
 
-        const guessBtn = document.createElement('button');
-        guessBtn.textContent = "Выбрать персонажа";
-        guessBtn.className = 'guess-btn';
-        guessBtn.addEventListener('click', (e) => {
-            e.stopPropagation();
-            if (gameOver || div.classList.contains('disabled')) return;
-            makeGuess(c);
-        });
-
-        div.addEventListener('click', () => {
-            if (gameOver) return;
-            div.classList.toggle('disabled');
-            const btn = div.querySelector('.guess-btn');
-            btn.disabled = div.classList.contains('disabled');
-        });
-
-        div.appendChild(guessBtn);
-        oppBoard.appendChild(div);
+    const guessBtn = document.createElement('button');
+    guessBtn.textContent = "Выбрать персонажа";
+    guessBtn.className = 'guess-btn';
+    guessBtn.disabled = false; // Устанавливаем начальное состояние кнопки
+    guessBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (gameOver || div.classList.contains('disabled')) return;
+        makeGuess(c);
     });
-}
+
+    div.addEventListener('click', () => {
+        if (gameOver) return;
+
+        // Переключаем состояние disabled/active
+        if (div.classList.contains('disabled')) {
+            div.classList.remove('disabled');
+            guessBtn.disabled = false; // Снова активируем кнопку
+        } else {
+            div.classList.add('disabled');
+            guessBtn.disabled = true; // Деактивируем кнопку
+        }
+    });
+
+    div.appendChild(guessBtn);
+    oppBoard.appendChild(div);
+});
 
 function createCharCard(fileName) {
     const div = document.createElement('div');
