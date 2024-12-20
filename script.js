@@ -153,15 +153,14 @@ function onDataChannelOpen() {
 function onDataChannelMessage(event) {
     const msg = JSON.parse(event.data);
     if (msg.type === 'set') {
-        document.getElementById('signal-exchange').style.display = 'none'; // Скрываем здесь
         chosenSet = msg.set;
         characters = msg.chars;
         currentRoundHostFile = msg.hostFile;
         currentRoundGuestFile = msg.guestFile;
         renderGameBoards();
     } else if (msg.type === 'assign') {
-        myCharacterFile = msg.myCharacter;
-        renderGameBoards();
+    myCharacterFile = isHost ? currentRoundHostFile : currentRoundGuestFile; // Устанавливаем правильный персонаж
+    renderGameBoards();
     } else if (msg.type === 'question') {
         document.getElementById('status').textContent = `[Противник]: ${msg.text}`;
     } else if (msg.type === 'guess') {
@@ -176,17 +175,16 @@ function onDataChannelMessage(event) {
     }
 }
 
-
 function checkIfReady() {
     if (isHost) {
         if (localConnection.remoteDescription && dataChannel && dataChannel.readyState === 'open') {
-            document.getElementById('signal-exchange').style.display = 'none';
             assignCharacters();
+            document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
         }
     } else {
         if (remoteConnection.localDescription && dataChannel && dataChannel.readyState === 'open') {
-            document.getElementById('signal-exchange').style.display = 'none';
             renderGameBoards();
+            document.getElementById('signal-exchange').style.display = 'none'; // Скрываем раздел обмена сигналами
         }
     }
 }
@@ -206,15 +204,22 @@ function assignCharacters() {
     currentRoundHostFile = characters[hostIndex];
     currentRoundGuestFile = characters[guestIndex];
 
-    myCharacterFile = isHost ? currentRoundHostFile : currentRoundGuestFile;
+    hostFile = currentRoundHostFile;
+    guestFile = currentRoundGuestFile;
 
-    // Передаем информацию об обоих персонажах
+    myCharacterFile = isHost ? hostFile : guestFile;
+
     dataChannel.send(JSON.stringify({
         type: 'set',
         set: chosenSet,
         chars: characters,
         hostFile: currentRoundHostFile,
         guestFile: currentRoundGuestFile
+    }));
+
+    dataChannel.send(JSON.stringify({
+        type: 'assign',
+        myCharacter: myCharacterFile // Отправляем клиенту его персонажа
     }));
 
     renderGameBoards();
@@ -302,7 +307,7 @@ function endGame(guessedCorrectly) {
     showGameResult(result, guesserIsHost, yourCharFile, oppCharFile);
 }
 
-function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
+function showGameResult(result, guesserIsHost, hostChar, guestChar) {
     document.getElementById('game-board').style.display = 'none';
     document.getElementById('game-result').style.display = 'block';
 
@@ -323,7 +328,7 @@ function showGameResult(result, guesserIsHost, yourCharFile, oppCharFile) {
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(isHost ? currentRoundHostFile : currentRoundGuestFile));
+    finalYourChar.appendChild(createCharCard(myCharacterFile));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
