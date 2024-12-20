@@ -266,7 +266,8 @@ function renderGameBoards() {
 
     div.appendChild(guessBtn);
     oppBoard.appendChild(div);
-});
+}); // <-- Эта скобка завершает characters.forEach
+
 
 function createCharCard(fileName) {
     const div = document.createElement('div');
