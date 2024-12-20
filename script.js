@@ -194,10 +194,8 @@ function assignCharacters() {
     hostFile = currentRoundHostFile;
     guestFile = currentRoundGuestFile;
 
-    // Устанавливаем "Мой персонаж" для каждой стороны
     myCharacterFile = isHost ? hostFile : guestFile;
 
-    // Отправляем данные на другую сторону
     dataChannel.send(JSON.stringify({
         type: 'set',
         set: chosenSet,
@@ -208,6 +206,7 @@ function assignCharacters() {
 
     renderGameBoards();
 }
+
 
 
 function renderGameBoards() {
@@ -221,7 +220,7 @@ function renderGameBoards() {
         myContainer.appendChild(createCharCard(myCharacterFile));
     } else {
         const placeholder = document.createElement('div');
-        placeholder.textContent = "Неизвестный персонаж";
+        placeholder.textContent = "Персонаж не выбран.";
         myContainer.appendChild(placeholder);
     }
 
@@ -246,17 +245,16 @@ function renderGameBoards() {
 
 
 function createCharCard(fileName) {
-    if (!fileName) {
-        const placeholder = document.createElement('div');
-        placeholder.className = 'char';
-        const p = document.createElement('p');
-        p.textContent = "Неизвестный персонаж";
-        placeholder.appendChild(p);
-        return placeholder;
-    }
-
     const div = document.createElement('div');
     div.className = 'char';
+
+    if (!fileName) {
+        const placeholder = document.createElement('p');
+        placeholder.textContent = "Персонаж отсутствует";
+        div.appendChild(placeholder);
+        return div;
+    }
+
     const img = document.createElement('img');
     img.src = `packs/${chosenSet}/${fileName}`;
     const p = document.createElement('p');
@@ -313,12 +311,13 @@ function showGameResult(result, guesserIsHost, hostChar, guestChar) {
 
     const finalYourChar = document.getElementById('final-your-char');
     finalYourChar.innerHTML = '';
-    finalYourChar.appendChild(createCharCard(isHost ? currentRoundHostFile : currentRoundGuestFile));
+    finalYourChar.appendChild(createCharCard(myCharacterFile));
 
     const finalOppChar = document.getElementById('final-opp-char');
     finalOppChar.innerHTML = '';
     finalOppChar.appendChild(createCharCard(isHost ? currentRoundGuestFile : currentRoundHostFile));
 }
+
 
 
 function startNewRound() {
